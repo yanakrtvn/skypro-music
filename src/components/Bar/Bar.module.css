@@ -1,14 +1,17 @@
 .bar {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  background: rgba(28, 28, 28, 0.5);
+  background: rgba(28, 28, 28, 0.95);
+  z-index: 1000;
+  height: 73px;
 }
 
 .bar__content {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .bar__playerProgress {
@@ -18,12 +21,13 @@
 }
 
 .bar__playerBlock {
-  height: 73px;
+  flex: 1;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
 }
-
 .bar__player {
   display: flex;
   flex-direction: row;
@@ -243,4 +247,60 @@
   border-radius: 50%;
   position: relative;
   margin-top: -7px;
+}
+
+.player__btnPrev,
+.player__btnPlay,
+.player__btnNext,
+.player__btnRepeat,
+.player__btnShuffle,
+.trackPlay__like,
+.trackPlay__dislike,
+.volume__progress {
+  cursor: pointer;
+}
+
+.player__btnPrev:hover .player__btnPrevSvg,
+.player__btnPlay:hover .player__btnPlaySvg,
+.player__btnNext:hover .player__btnNextSvg {
+  fill: transparent;
+  stroke: #acacac;
+}
+
+.player__btnRepeat:hover .player__btnRepeatSvg,
+.player__btnShuffle:hover .player__btnShuffleSvg {
+  stroke: #acacac;
+}
+
+.trackPlay__like:hover .trackPlay__likeSvg,
+.trackPlay__dislike:hover .trackPlay__dislikeSvg {
+  stroke: #acacac;
+}
+
+.player__btnPrev:active .player__btnPrevSvg,
+.player__btnPlay:active .player__btnPlaySvg,
+.player__btnNext:active .player__btnNextSvg,
+.player__btnRepeat:active .player__btnRepeatSvg,
+.player__btnShuffle:active .player__btnShuffleSvg {
+  stroke: #ffffff;
+}
+
+.trackPlay__like:active .trackPlay__likeSvg,
+.trackPlay__dislike:active .trackPlay__dislikeSvg {
+  fill: #696969;
+  stroke: #ffffff;
+}
+
+.trackPlay__likeDislike {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-left: 26%;
+}
+
+.trackPlay__like,
+.trackPlay__dislike {
+  padding: 5px;
+  display: flex;
+  align-items: center;
 }

@@ -4,6 +4,10 @@
   margin-bottom: 12px;
 }
 
+.playlist__item:last-child {
+  margin-bottom: 40px;
+}
+
 .playlist__track {
   display: flex;
   flex-direction: row;
@@ -16,6 +20,7 @@
   flex-direction: row;
   align-items: center;
   width: 447px;
+  flex-shrink: 0;
 }
 
 .track__titleImage {
@@ -66,6 +71,7 @@
   width: 321px;
   display: flex;
   justify-content: flex-start;
+  flex-shrink: 0;
 }
 
 .track__authorLink {
@@ -84,6 +90,7 @@
 
 .track__album {
   width: 245px;
+  flex-shrink: 0;
 }
 
 .track__albumLink {
@@ -102,6 +109,9 @@
 .track__time {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  width: 60px;
+  justify-content: flex-end;
 }
 
 .track__timeSvg {
