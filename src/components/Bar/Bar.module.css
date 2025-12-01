@@ -1,0 +1,306 @@
+.bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(28, 28, 28, 0.95);
+  z-index: 1000;
+  height: 73px;
+}
+
+.bar__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.bar__playerProgress {
+  width: 100%;
+  height: 5px;
+  background: #2e2e2e;
+}
+
+.bar__playerBlock {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+.bar__player {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.bar__volumeBlock {
+  width: auto;
+  display: flex;
+  align-items: center;
+  padding: 0 92px 0 0;
+}
+
+.player__controls {
+  display: flex;
+  flex-direction: row;
+  padding: 0 27px 0 31px;
+}
+
+.player__btnPrev,
+.player__btnPlay,
+.player__btnNext,
+.player__btnRepeat,
+.player__btnShuffle {
+  padding: 5px;
+  display: flex;
+  align-items: center;
+}
+
+.player__btnPrev {
+  margin-right: 23px;
+}
+
+.player__btnPrevSvg {
+  width: 15px;
+  height: 14px;
+}
+
+.player__btnPlay {
+  margin-right: 23px;
+}
+
+.player__btnPlaySvg {
+  width: 22px;
+  height: 20px;
+  fill: #d9d9d9;
+}
+
+.player__btnNext {
+  margin-right: 28px;
+  fill: #a53939;
+}
+
+.player__btnNextSvg {
+  width: 15px;
+  height: 14px;
+  fill: inherit;
+  stroke: #d9d9d9;
+}
+
+.player__btnRepeat {
+  margin-right: 24px;
+}
+
+.player__btnRepeatSvg {
+  width: 18px;
+  height: 12px;
+  fill: transparent;
+  stroke: #696969;
+}
+
+.player__btnShuffle {
+  display: flex;
+  align-items: center;
+}
+
+.player__btnShuffleSvg {
+  width: 19px;
+  height: 12px;
+  fill: transparent;
+  stroke: #696969;
+}
+
+.player__trackPlay {
+  display: flex;
+  flex-direction: row;
+}
+
+.trackPlay__contain {
+  width: auto;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'image author' 'image album';
+  align-items: center;
+}
+
+.trackPlay__image {
+  width: 51px;
+  height: 51px;
+  background-color: #313131;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  grid-row: 1;
+  grid-column: 1;
+  grid-area: image;
+}
+
+.trackPlay__svg {
+  width: 18px;
+  height: 17px;
+  fill: transparent;
+  stroke: #4e4e4e;
+}
+
+.trackPlay__author {
+  grid-row: 1;
+  grid-column: 2;
+  grid-area: author;
+  min-width: 49px;
+}
+
+.trackPlay__authorLink {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.trackPlay__album {
+  grid-row: 2;
+  grid-column: 2;
+  grid-area: album;
+  min-width: 49px;
+}
+
+.trackPlay__albumLink {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 24px;
+  color: #ffffff;
+}
+
+.trackPlay__dislike {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-left: 26%;
+}
+
+.trackPlay__likeSvg {
+  width: 14px;
+  height: 12px;
+  fill: transparent;
+  stroke: #696969;
+}
+
+.trackPlay__dislikeSvg {
+  width: 14.34px;
+  height: 13px;
+  fill: transparent;
+  stroke: #696969;
+}
+
+.volume__content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: end;
+}
+
+.volume__image {
+  width: 13px;
+  height: 18px;
+  margin-right: 17px;
+}
+
+.volume__svg {
+  width: 13px;
+  height: 18px;
+  fill: transparent;
+}
+
+.volume__progress {
+  width: 109px;
+  display: flex;
+  align-items: center;
+}
+
+.volume__progressLine {
+  width: 100%;
+  height: 2px;
+  appearance: none;
+  background: #797979;
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume__progressLine::-webkit-slider-runnable-track {
+  height: 2px;
+  background: #797979;
+  border-radius: 5px;
+}
+
+.volume__progressLine::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #1a1a1a;
+  border: 2px solid white;
+  border-radius: 50%;
+  position: relative;
+  margin-top: -7px;
+}
+
+.player__btnPrev,
+.player__btnPlay,
+.player__btnNext,
+.player__btnRepeat,
+.player__btnShuffle,
+.trackPlay__like,
+.trackPlay__dislike,
+.volume__progress {
+  cursor: pointer;
+}
+
+.player__btnPrev:hover .player__btnPrevSvg,
+.player__btnPlay:hover .player__btnPlaySvg,
+.player__btnNext:hover .player__btnNextSvg {
+  fill: transparent;
+  stroke: #acacac;
+}
+
+.player__btnRepeat:hover .player__btnRepeatSvg,
+.player__btnShuffle:hover .player__btnShuffleSvg {
+  stroke: #acacac;
+}
+
+.trackPlay__like:hover .trackPlay__likeSvg,
+.trackPlay__dislike:hover .trackPlay__dislikeSvg {
+  stroke: #acacac;
+}
+
+.player__btnPrev:active .player__btnPrevSvg,
+.player__btnPlay:active .player__btnPlaySvg,
+.player__btnNext:active .player__btnNextSvg,
+.player__btnRepeat:active .player__btnRepeatSvg,
+.player__btnShuffle:active .player__btnShuffleSvg {
+  stroke: #ffffff;
+}
+
+.trackPlay__like:active .trackPlay__likeSvg,
+.trackPlay__dislike:active .trackPlay__dislikeSvg {
+  fill: #696969;
+  stroke: #ffffff;
+}
+
+.trackPlay__likeDislike {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-left: 26%;
+}
+
+.trackPlay__like,
+.trackPlay__dislike {
+  padding: 5px;
+  display: flex;
+  align-items: center;
+}
