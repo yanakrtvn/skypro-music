@@ -1,84 +1,85 @@
+'use client'
+import { useState } from 'react'
 import Track from '@/components/Track/Track'
 import styles from './CenterBlock.module.css'
+import { tracksData } from '@/data/tracks'
+import FilterList from '@/components/FilterList/FilterList'
+import FilterLength from '@/components/FilterLength/FilterLength'
+
+function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
+  const uniqueValues = new Set<string>();
+  
+  arr.forEach((item) => {
+    const value = item[key] as unknown;
+    
+    if (Array.isArray(value)) {
+      (value as string[]).forEach((v) => {
+        if (v) uniqueValues.add(v);
+      });
+    } else if (typeof value === 'string') {
+      uniqueValues.add(value);
+    } else if (typeof value === 'number') {
+      uniqueValues.add(value.toString());
+    }
+  });
+  
+  return Array.from(uniqueValues).sort();
+}
 
 export default function CenterBlock() {
-  const tracks = [
-      { 
-      id: 1, 
-      title: "Guilt", 
-      artist: "Nero", 
-      album: "Welcome Reality", 
-      duration: "4:44" 
-    },
-    { 
-      id: 2, 
-      title: "Elektro", 
-      artist: "Dynoro, Outwork, Mr. Gee", 
-      album: "Elektro", 
-      duration: "2:22" 
-    },
-    { 
-      id: 3, 
-      title: "I'm Fire", 
-      artist: "Ali Bakgor", 
-      album: "I'm Fire", 
-      duration: "2:22" 
-    },
-    { 
-      id: 4, 
-      title: "Non Stop", 
-      artist: "Стоункат, Psychopath", 
-      album: "Non Stop", 
-      duration: "4:12",
-      subtitle: "(Remix)"
-    },
-    { 
-      id: 5, 
-      title: "Run Run", 
-      artist: "Jaded, Will Clarke, AR/CO", 
-      album: "Run Run", 
-      duration: "2:54",
-      subtitle: "(feat. AR/CO)"
-    },
-    { 
-      id: 6, 
-      title: "Eyes on Fire", 
-      artist: "Blue Foundation, Zeds Dead", 
-      album: "Eyes on Fire", 
-      duration: "5:20",
-      subtitle: "(Zeds Dead Remix)"
-    },
-    { 
-      id: 7, 
-      title: "Mucho Bien", 
-      artist: "HYBIT, Mr. Black, Offer Nissim, Hi Profile", 
-      album: "Mucho Bien", 
-      duration: "3:41",
-      subtitle: "(Hi Profile Remix)"
-    },
-    { 
-      id: 8, 
-      title: "Knives n Cherries", 
-      artist: "minthaze", 
-      album: "Captivating", 
-      duration: "1:48" 
-    },
-    { 
-      id: 9, 
-      title: "How Deep Is Your Love", 
-      artist: "Calvin Harris, Disciples", 
-      album: "How Deep Is Your Love", 
-      duration: "3:32" 
-    },
-    { 
-      id: 10, 
-      title: "Morena", 
-      artist: "Tom Boxer", 
-      album: "Soundz Made in Romania", 
-      duration: "3:36" 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const uniqueArtists = getUniqueValuesFromTracks(tracksData, 'author')
+  
+  const uniqueGenres = [...new Set(
+    tracksData.flatMap(track => track.genre)
+  )].sort()
+  
+  const uniqueYears = [...new Set(
+    tracksData.map(track => track.release_date.split('-')[0])
+  )].sort((a, b) => b.localeCompare(a))
+  
+  const toggleFilter = (filterName: string) => {
+    if (activeFilter === filterName) {
+      setActiveFilter(null)
+    } else {
+      setActiveFilter(filterName)
     }
-  ]
-
+  }
+  
+  const getFilterItems = () => {
+    switch(activeFilter) {
+      case 'artist':
+        return uniqueArtists
+      case 'year':
+        return uniqueYears
+      case 'genre':
+        return uniqueGenres
+      default:
+        return []
+    }
+  }
+  
+  const getFilterCount = () => {
+    switch(activeFilter) {
+      case 'artist':
+        return uniqueArtists.length
+      case 'year':
+        return uniqueYears.length
+      case 'genre':
+        return uniqueGenres.length
+      default:
+        return 0
+    }
+  }
+  
+  const filteredTracks = tracksData.filter(track => 
+    track.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    track.album.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+  console.log('activeFilter:', activeFilter)
+console.log('getFilterItems():', getFilterItems())
   return (
     <div className={styles.centerblock}>
       <div className={styles.centerblock__search}>
@@ -90,6 +91,8 @@ export default function CenterBlock() {
           type="search"
           placeholder="Поиск"
           name="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
       
@@ -97,9 +100,51 @@ export default function CenterBlock() {
       
       <div className={styles.centerblock__filter}>
         <div className={styles.filter__title}>Искать по:</div>
-        <div className={styles.filter__button}>исполнителю</div>
-        <div className={styles.filter__button}>году выпуска</div>
-        <div className={styles.filter__button}>жанру</div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${activeFilter === 'artist' ? styles.filter__buttonActive : ''}`}
+            onClick={() => toggleFilter('artist')}
+          >
+            исполнителю
+          </button>
+          {activeFilter === 'artist' && (
+            <>
+              <FilterList items={getFilterItems()} />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${activeFilter === 'year' ? styles.filter__buttonActive : ''}`}
+            onClick={() => toggleFilter('year')}
+          >
+            году выпуска
+          </button>
+          {activeFilter === 'year' && (
+            <>
+              <FilterList items={getFilterItems()} />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${activeFilter === 'genre' ? styles.filter__buttonActive : ''}`}
+            onClick={() => toggleFilter('genre')}
+          >
+            жанру
+          </button>
+          {activeFilter === 'genre' && (
+            <>
+              <FilterList items={getFilterItems()} />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
       </div>
       
       <div className={styles.centerblock__content}>
@@ -115,8 +160,8 @@ export default function CenterBlock() {
         </div>
         
         <div className={styles.content__playlist}>
-          {tracks.map(track => (
-            <Track key={track.id} track={track} />
+          {filteredTracks.map(track => (
+            <Track key={track._id} track={track} />
           ))}
         </div>
       </div>

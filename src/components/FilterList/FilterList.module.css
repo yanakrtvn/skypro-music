@@ -1,0 +1,61 @@
+.filter__content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin-top: 10px;
+  padding: 34px;
+  border-radius: 12px;
+  background: rgb(49, 49, 49);
+  width: max-content;
+  max-width: 248px;
+}
+
+.filter__list {
+  width: max-content;
+  max-width: 180px;
+  height: max-content;
+  max-height: 237px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #FFFFFF #4B4949;
+}
+
+.filter__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.filter__list::-webkit-scrollbar-track {
+  background: #4B4949;
+  border-radius: 10px;
+}
+
+.filter__list::-webkit-scrollbar-thumb {
+  background: #FFFFFF;
+  border-radius: 10px;
+}
+
+.filter__list::-webkit-scrollbar-button {
+  display: none;
+}
+
+.filter__item {
+  font-size: 20px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.filter__item:hover {
+  color: rgb(182, 114, 255);
+  text-decoration: underline;
+}
+
+.filter__item:active {
+  color: rgb(182, 114, 255);
+  text-decoration: underline;
+}

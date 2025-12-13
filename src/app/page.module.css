@@ -1,24 +1,24 @@
 .wrapper {
   width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  min-height: 100vh;
+  overflow: hidden;
   background-color: #181818;
-  position: relative;
 }
 
 .container {
-  flex: 1;
+  max-width: 1920px;
+  margin: 0 auto;
+  position: relative;
+  background-color: #181818;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  background-color: #181818;
+  height: 100vh;
 }
 
 .main {
   flex: 1;
   display: flex;
-  min-height: 0;
-  background-color: #181818;
+  overflow: hidden;
   position: relative;
+  min-height: 0; /* Важно! */
 }

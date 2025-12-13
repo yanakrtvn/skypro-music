@@ -1,0 +1,17 @@
+.filter__length {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
+  background: rgb(173, 97, 255);
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 26px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
