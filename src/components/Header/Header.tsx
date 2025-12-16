@@ -16,27 +16,31 @@ export default function Header() {
   }
 
   return (
-    <nav className={styles.nav}>
-      <div className={styles.nav__logo}>
-        <Link href="/" onClick={closeMenu}>
-          <Image
-            width={113}
-            height={17}
-            className={styles.logo__image}
-            src="/images/logo.png"
-            alt="logo"
-          />
-        </Link>
+    <div className={`${styles.nav} ${isMenuOpen ? styles.navMenuOpen : ''}`}>
+      <div className={styles.nav__content}>
+        <div className={styles.nav__logo}>
+          <Link href="/" onClick={closeMenu}>
+            <Image
+              width={113}
+              height={17}
+              className={styles.logo__image}
+              src="/images/logo.png"
+              alt="logo"
+            />
+          </Link>
+        </div>
+        
+        <div 
+          className={styles.nav__burger} 
+          onClick={toggleMenu}
+        >
+          <span className={styles.burger__line}></span>
+          <span className={styles.burger__line}></span>
+          <span className={styles.burger__line}></span>
+        </div>
       </div>
-      <div 
-        className={styles.nav__burger} 
-        onClick={toggleMenu}
-      >
-        <span className={styles.burger__line}></span>
-        <span className={styles.burger__line}></span>
-        <span className={styles.burger__line}></span>
-      </div>
-      <div className={`${styles.nav__menu} ${isMenuOpen ? styles.nav__menuOpen : ''}`}>
+      
+      <div className={`${styles.nav__menu} ${isMenuOpen ? styles.nav__menuVisible : ''}`}>
         <ul className={styles.menu__list}>
           <li className={styles.menu__item}>
             <Link href="/" className={styles.menu__link} onClick={closeMenu}>
@@ -55,6 +59,6 @@ export default function Header() {
           </li>
         </ul>
       </div>
-    </nav>
+    </div>
   )
 }

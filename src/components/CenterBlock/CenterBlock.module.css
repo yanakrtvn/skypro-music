@@ -6,6 +6,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .centerblock__search {
@@ -64,6 +65,7 @@
   align-items: center;
   margin-bottom: 51px;
   flex-shrink: 0;
+  position: relative;
 }
 
 .filter__title {
@@ -179,4 +181,40 @@
 
 .content__playlist.scrolled::after {
   opacity: 1;
+}
+
+.filter__button {
+  position: relative;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  border: 1px solid #ffffff;
+  border-radius: 60px;
+  padding: 6px 20px;
+  margin-right: 10px;
+  color: #ffffff;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter__button:hover {
+  border-color: #d9b6ff;
+  color: #d9b6ff;
+}
+
+.filter__buttonActive {
+  border-color: #ad61ff;
+  color: #ad61ff;
+  background-color: rgba(173, 97, 255, 0.1);
+}
+
+.centerblock__filter > div {
+  position: relative;
+  margin-right: 10px;
+}
+.filter__container {
+  position: relative;
+  margin-right: 10px;
 }

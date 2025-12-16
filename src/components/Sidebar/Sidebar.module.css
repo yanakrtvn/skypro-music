@@ -3,7 +3,11 @@
   padding: 20px 90px 20px 78px;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 73px);
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .sidebar__personal {
@@ -13,6 +17,7 @@
   justify-content: flex-end;
   padding: 12px 0 15px 0;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .sidebar__personalName {
@@ -50,18 +55,38 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-   padding-top: 300px;
+  padding-top: 300px;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0;
+  padding-bottom: 20px;
 }
 
 .sidebar__list {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+  padding-bottom: 40px;
+  scrollbar-width: none;
+  -ms-overflow-style: none; 
+}
+
+.sidebar__list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 .sidebar__item {
   width: 250px;
   height: 150px;
+  flex-shrink: 0;
 }
 
 .sidebar__item:not(:last-child) {
