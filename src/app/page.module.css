@@ -20,5 +20,5 @@
   display: flex;
   overflow: hidden;
   position: relative;
-  min-height: 0; /* Важно! */
+  min-height: 0;
 }

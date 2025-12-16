@@ -1,7 +1,43 @@
-import Link from 'next/link'
-import styles from './Bar.module.css'
+'use client';
+
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { togglePlay } from '@/store/features/trackSlice';
+import styles from './Bar.module.css';
+
+function formatTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
 
 export default function Bar() {
+  const { currentTrack, isPlaying } = useAppSelector((state) => state.tracks);
+  const dispatch = useAppDispatch();
+
+  const handlePlayPause = () => {
+    dispatch(togglePlay());
+  };
+
+  const handleNextTrack = () => {
+    alert('Еще не реализовано');
+  };
+
+  const handlePrevTrack = () => {
+    alert('Еще не реализовано');
+  };
+
+  const handleShuffle = () => {
+    alert('Еще не реализовано');
+  };
+
+  const handleLoop = () => {
+    alert('Еще не реализовано');
+  };
+
+  if (!currentTrack) {
+    return null;
+  }
+
   return (
     <div className={styles.bar}>
       <div className={styles.bar__content}>
@@ -9,27 +45,51 @@ export default function Bar() {
         <div className={styles.bar__playerBlock}>
           <div className={styles.bar__player}>
             <div className={styles.player__controls}>
-              <div className={styles.player__btnPrev}>
+              <div 
+                className={styles.player__btnPrev} 
+                onClick={handlePrevTrack}
+                style={{ cursor: 'pointer' }}
+              >
                 <svg className={styles.player__btnPrevSvg}>
                   <use xlinkHref="/images/icon/sprite.svg#icon-prev"></use>
                 </svg>
               </div>
-              <div className={styles.player__btnPlay}>
+              
+              <div 
+                className={styles.player__btnPlay} 
+                onClick={handlePlayPause}
+                style={{ cursor: 'pointer' }}
+              >
                 <svg className={styles.player__btnPlaySvg}>
-                  <use xlinkHref="/images/icon/sprite.svg#icon-play"></use>
+                  <use xlinkHref={`/images/icon/sprite.svg#${isPlaying ? 'icon-pause' : 'icon-play'}`}></use>
                 </svg>
               </div>
-              <div className={styles.player__btnNext}>
+              
+              <div 
+                className={styles.player__btnNext} 
+                onClick={handleNextTrack}
+                style={{ cursor: 'pointer' }}
+              >
                 <svg className={styles.player__btnNextSvg}>
                   <use xlinkHref="/images/icon/sprite.svg#icon-next"></use>
                 </svg>
               </div>
-              <div className={styles.player__btnRepeat}>
+              
+              <div 
+                className={styles.player__btnRepeat} 
+                onClick={handleLoop}
+                style={{ cursor: 'pointer' }}
+              >
                 <svg className={styles.player__btnRepeatSvg}>
                   <use xlinkHref="/images/icon/sprite.svg#icon-repeat"></use>
                 </svg>
               </div>
-              <div className={styles.player__btnShuffle}>
+              
+              <div 
+                className={styles.player__btnShuffle} 
+                onClick={handleShuffle}
+                style={{ cursor: 'pointer' }}
+              >
                 <svg className={styles.player__btnShuffleSvg}>
                   <use xlinkHref="/images/icon/sprite.svg#icon-shuffle"></use>
                 </svg>
@@ -39,55 +99,25 @@ export default function Bar() {
             <div className={styles.player__trackPlay}>
               <div className={styles.trackPlay__contain}>
                 <div className={styles.trackPlay__image}>
-                  <svg className={styles.trackPlay__svg}>
-                    <use xlinkHref="/images/icon/sprite.svg#icon-note"></use>
-                  </svg>
+                  {currentTrack.logo ? (
+                    <img src={currentTrack.logo} alt={currentTrack.name} />
+                  ) : (
+                    <svg className={styles.trackPlay__svg}>
+                      <use xlinkHref="/images/icon/sprite.svg#icon-note"></use>
+                    </svg>
+                  )}
                 </div>
                 <div className={styles.trackPlay__author}>
-                  <Link className={styles.trackPlay__authorLink} href="/">
-                    Трек
-                  </Link>
+                  <span className={styles.trackPlay__authorLink}>{currentTrack.name}</span>
                 </div>
                 <div className={styles.trackPlay__album}>
-                  <Link className={styles.trackPlay__albumLink} href="/">
-                    Альбом
-                  </Link>
+                  <span className={styles.trackPlay__albumLink}>{currentTrack.author}</span>
                 </div>
-              </div>
-
-              <div className={styles.trackPlay__likeDislike}>
-                <div className={styles.trackPlay__like}>
-                  <svg className={styles.trackPlay__likeSvg}>
-                    <use xlinkHref="/images/icon/sprite.svg#icon-like"></use>
-                  </svg>
-                </div>
-                <div className={styles.trackPlay__dislike}>
-                  <svg className={styles.trackPlay__dislikeSvg}>
-                    <use xlinkHref="/images/icon/sprite.svg#icon-dislike"></use>
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className={styles.bar__volumeBlock}>
-            <div className={styles.volume__content}>
-              <div className={styles.volume__image}>
-                <svg className={styles.volume__svg}>
-                  <use xlinkHref="/images/icon/sprite.svg#icon-volume"></use>
-                </svg>
-              </div>
-              <div className={styles.volume__progress}>
-                <input
-                  className={styles.volume__progressLine}
-                  type="range"
-                  name="range"
-                />
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
