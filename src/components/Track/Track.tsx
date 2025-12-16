@@ -1,14 +1,9 @@
 import Link from 'next/link'
 import styles from './Track.module.css'
+import { TrackType } from '@/types/track';
 
 interface TrackProps {
-  track: {
-    _id: number
-    name: string
-    author: string
-    album: string
-    duration_in_seconds: number
-  }
+  track: TrackType
 }
 
 export default function Track({ track }: TrackProps) {
