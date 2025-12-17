@@ -78,8 +78,6 @@ export default function CenterBlock() {
     track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
     track.album.toLowerCase().includes(searchQuery.toLowerCase())
   )
-  console.log('activeFilter:', activeFilter)
-console.log('getFilterItems():', getFilterItems())
   return (
     <div className={styles.centerblock}>
       <div className={styles.centerblock__search}>

@@ -44,6 +44,11 @@ export default function Track({ track }: TrackProps) {
           <div className={styles.track__titleText}>
             <div className={styles.track__titleLink}>
               {track.name}
+              {!track.track_file && (
+                <span style={{ color: 'red', fontSize: '10px', marginLeft: '5px' }}>
+                  (нет аудио)
+                </span>
+              )}
             </div>
           </div>
         </div>
