@@ -304,3 +304,39 @@
   display: flex;
   align-items: center;
 }
+
+.trackPlay__authorText,
+.trackPlay__authorLink,
+.trackPlay__albumLink {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ffffff;
+  white-space: nowrap;
+  text-decoration: none;
+  display: block;
+}
+
+.trackPlay__albumLink {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.btnActive .player__btnRepeatSvg,
+.btnActive .player__btnShuffleSvg {
+  stroke: #ad61ff !important;
+}
+
+.btnActive:hover .player__btnRepeatSvg,
+.btnActive:hover .player__btnShuffleSvg {
+  stroke: #ad61ff !important;
+}
+
+.player__btnPlay .player__btnPlaySvg {
+  fill: #d9d9d9;
+}
+
+.player__btnPlay:hover .player__btnPlaySvg {
+  fill: #acacac;
+}
