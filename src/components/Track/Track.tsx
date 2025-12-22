@@ -3,6 +3,7 @@
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setCurrentTrack, playTrack } from '@/store/features/trackSlice';
 import { TrackType } from '@/types/track';
+import { tracksData } from '@/data/tracks';
 import styles from './Track.module.css';
 
 function formatTime(seconds: number): string {
@@ -18,9 +19,14 @@ export default function Track({ track }: TrackProps) {
   const isCurrentTrack = currentTrack?._id === track._id;
 
   const handleTrackClick = () => {
+    const mainPlaylist = {
+      id: 1,
+      name: 'Главное',
+      tracks: tracksData
+    };
+    
     if (!isCurrentTrack) {
-      dispatch(setCurrentTrack(track));
-      dispatch(playTrack());
+      dispatch(setCurrentTrack({ track, playlist: mainPlaylist }));
     } else {
       dispatch(playTrack());
     }

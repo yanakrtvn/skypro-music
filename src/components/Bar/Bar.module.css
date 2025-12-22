@@ -325,12 +325,12 @@
 
 .btnActive .player__btnRepeatSvg,
 .btnActive .player__btnShuffleSvg {
-  stroke: #ad61ff !important;
+  stroke: rgba(217, 217, 217, 1) !important; 
 }
 
 .btnActive:hover .player__btnRepeatSvg,
 .btnActive:hover .player__btnShuffleSvg {
-  stroke: #ad61ff !important;
+  stroke: rgba(217, 217, 217, 1) !important;
 }
 
 .player__btnPlay .player__btnPlaySvg {
@@ -339,4 +339,38 @@
 
 .player__btnPlay:hover .player__btnPlaySvg {
   fill: #acacac;
+}
+
+.bar__playerProgress {
+  position: relative;
+  cursor: pointer;
+}
+
+.progress__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #ad61ff;
+  transition: width 0.1s linear;
+}
+
+.progress__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  display: none;
+}
+
+.bar__playerProgress:hover .progress__thumb {
+  display: block;
+}
+
+.player__btnRepeat:not(.btnActive):hover .player__btnRepeatSvg,
+.player__btnShuffle:not(.btnActive):hover .player__btnShuffleSvg {
+  stroke: #acacac;
 }

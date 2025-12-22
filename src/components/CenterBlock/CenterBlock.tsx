@@ -1,10 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Track from '@/components/Track/Track'
 import styles from './CenterBlock.module.css'
 import { tracksData } from '@/data/tracks'
 import FilterList from '@/components/FilterList/FilterList'
 import FilterLength from '@/components/FilterLength/FilterLength'
+import { useAppDispatch } from '@/store/hooks'
+import { setPlaylistTracks } from '@/store/features/trackSlice'
 
 function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
   const uniqueValues = new Set<string>();
@@ -29,6 +31,8 @@ function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): st
 export default function CenterBlock() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const dispatch = useAppDispatch()
+  
   const uniqueArtists = getUniqueValuesFromTracks(tracksData, 'author')
   
   const uniqueGenres = [...new Set(
@@ -38,6 +42,10 @@ export default function CenterBlock() {
   const uniqueYears = [...new Set(
     tracksData.map(track => track.release_date.split('-')[0])
   )].sort((a, b) => b.localeCompare(a))
+  
+  useEffect(() => {
+    dispatch(setPlaylistTracks(tracksData))
+  }, [dispatch])
   
   const toggleFilter = (filterName: string) => {
     if (activeFilter === filterName) {
@@ -78,6 +86,7 @@ export default function CenterBlock() {
     track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
     track.album.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  
   return (
     <div className={styles.centerblock}>
       <div className={styles.centerblock__search}>
