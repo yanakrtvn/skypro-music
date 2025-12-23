@@ -38,17 +38,24 @@ export default function Bar() {
   const progressBarRef = useRef<HTMLDivElement>(null);
 
   const handleTrackEnd = useCallback(() => {
-    if (loop) {
-      dispatch(seekToTime(0));
-      const audioElement = document.querySelector('audio') as HTMLAudioElement;
-      if (audioElement) {
-        audioElement.currentTime = 0;
-        audioElement.play().catch(console.error);
-      }
-    } else {
-      dispatch(nextTrack());
+  if (loop) {
+    dispatch(seekToTime(0));
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.currentTime = 0;
+      audioElement.play().catch(console.error);
     }
-  }, [loop, dispatch]);
+  } else {
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.pause();
+    }
+    
+    setTimeout(() => {
+      dispatch(nextTrack());
+    }, 100);
+  }
+}, [loop, dispatch]);
 
   useEffect(() => {
     const audioElement = document.querySelector('audio');

@@ -2,22 +2,26 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { setCurrentTime, setDuration } from '@/store/features/trackSlice';
+import { setCurrentTime, setDuration, nextTrack } from '@/store/features/trackSlice';
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const { currentTrack, isPlaying, loop, volume } = useAppSelector((state) => state.tracks);
   const dispatch = useAppDispatch();
 
-  const handleEnded = useCallback(() => {
-    const audioElement = audioRef.current;
-    if (!audioElement) return;
-
+  const handleTrackEnded = useCallback(() => {
     if (loop) {
-      audioElement.currentTime = 0;
-      audioElement.play().catch(console.error);
+      const audioElement = audioRef.current;
+      if (audioElement) {
+        audioElement.currentTime = 0;
+        audioElement.play().catch(console.error);
+      }
+    } else {
+      setTimeout(() => {
+        dispatch(nextTrack());
+      }, 100);
     }
-  }, [loop]);
+  }, [loop, dispatch]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -80,6 +84,10 @@ export default function AudioPlayer() {
       }
     };
 
+    const handleEnded = () => {
+      handleTrackEnded();
+    };
+
     audioElement.addEventListener('timeupdate', handleTimeUpdate);
     audioElement.addEventListener('loadedmetadata', handleLoadedMetadata);
     audioElement.addEventListener('ended', handleEnded);
@@ -89,7 +97,7 @@ export default function AudioPlayer() {
       audioElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audioElement.removeEventListener('ended', handleEnded);
     };
-  }, [isPlaying, currentTrack, volume, loop, dispatch, handleEnded]);
+  }, [isPlaying, currentTrack, volume, loop, dispatch, handleTrackEnded]);
 
   useEffect(() => {
     if (audioRef.current) {

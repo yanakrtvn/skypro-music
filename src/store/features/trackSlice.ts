@@ -42,19 +42,23 @@ const trackSlice = createSlice({
   initialState,
   reducers: {
     setCurrentTrack: (state, action: PayloadAction<{track: TrackType, playlist: PlaylistType}>) => {
-      state.currentTrack = action.payload.track;
-      state.currentPlaylist = action.payload.playlist;
-      state.currentTime = 0;
-      state.isPlaying = true;
-      
-      if (state.shuffle) {
-        state.shuffledOrder = generateShuffledOrder(action.payload.playlist.tracks.length);
-        const trackIndex = action.payload.playlist.tracks.findIndex(
-          t => t._id === action.payload.track._id
-        );
-        state.currentShuffleIndex = state.shuffledOrder.indexOf(trackIndex);
-      }
-    },
+  state.currentTrack = action.payload.track;
+  state.currentPlaylist = action.payload.playlist;
+  state.currentTime = 0;
+  state.isPlaying = true;
+  
+  if (state.shuffle) {
+    state.shuffledOrder = generateShuffledOrder(action.payload.playlist.tracks.length);
+    const trackIndex = action.payload.playlist.tracks.findIndex(
+      t => t._id === action.payload.track._id
+    );
+    state.currentShuffleIndex = state.shuffledOrder.indexOf(trackIndex);
+    
+    if (state.currentShuffleIndex === -1) {
+      state.currentShuffleIndex = 0;
+    }
+  }
+},
     
     togglePlay: (state) => {
       state.isPlaying = !state.isPlaying;
@@ -85,64 +89,87 @@ const trackSlice = createSlice({
     },
     
     setShuffle: (state, action: PayloadAction<boolean>) => {
-      state.shuffle = action.payload;
-      if (action.payload && state.currentPlaylist) {
-        state.shuffledOrder = generateShuffledOrder(state.currentPlaylist.tracks.length);
-        if (state.currentTrack) {
-          const trackIndex = state.currentPlaylist.tracks.findIndex(
-            t => t._id === state.currentTrack!._id
-          );
-          state.currentShuffleIndex = state.shuffledOrder.indexOf(trackIndex);
-        }
-      } else {
-        state.shuffledOrder = [];
-        state.currentShuffleIndex = -1;
+  state.shuffle = action.payload;
+  if (action.payload && state.currentPlaylist && state.currentPlaylist.tracks.length > 0) {
+    state.shuffledOrder = generateShuffledOrder(state.currentPlaylist.tracks.length);
+    
+    if (state.currentTrack) {
+      const trackIndex = state.currentPlaylist.tracks.findIndex(
+        t => t._id === state.currentTrack!._id
+      );
+      state.currentShuffleIndex = state.shuffledOrder.indexOf(trackIndex);
+      
+      if (state.currentShuffleIndex === -1) {
+        state.currentShuffleIndex = 0;
       }
-    },
+    }
+  } else {
+    state.shuffledOrder = [];
+    state.currentShuffleIndex = -1;
+  }
+},
     
     nextTrack: (state) => {
-      if (!state.currentPlaylist || !state.currentTrack) return;
+  if (!state.currentPlaylist || !state.currentTrack) return;
+  
+  const tracks = state.currentPlaylist.tracks;
+  if (tracks.length === 0) return;
+  
+  if (state.shuffle) {
+    if (state.shuffledOrder.length === 0) {
+      state.shuffledOrder = generateShuffledOrder(tracks.length);
+      state.currentShuffleIndex = 0;
+    } else {
+      state.currentShuffleIndex++;
       
-      const tracks = state.currentPlaylist.tracks;
-      let nextIndex: number;
-      
-      if (state.shuffle && state.shuffledOrder.length > 0) {
-        nextIndex = state.currentShuffleIndex + 1;
-        if (nextIndex >= state.shuffledOrder.length) return;
-        const trackIndex = state.shuffledOrder[nextIndex];
-        state.currentTrack = tracks[trackIndex];
-        state.currentShuffleIndex = nextIndex;
-      } else {
-        const currentIndex = tracks.findIndex(t => t._id === state.currentTrack!._id);
-        if (currentIndex === -1 || currentIndex >= tracks.length - 1) return;
-        state.currentTrack = tracks[currentIndex + 1];
+      if (state.currentShuffleIndex >= state.shuffledOrder.length) {
+        state.shuffledOrder = generateShuffledOrder(tracks.length);
+        state.currentShuffleIndex = 0;
       }
-      
-      state.currentTime = 0;
-      state.isPlaying = true;
-    },
+    }
     
-    prevTrack: (state) => {
-      if (!state.currentPlaylist || !state.currentTrack) return;
+    const trackIndex = state.shuffledOrder[state.currentShuffleIndex];
+    state.currentTrack = tracks[trackIndex];
+  } else {
+    const currentIndex = tracks.findIndex(t => t._id === state.currentTrack!._id);
+    const nextIndex = (currentIndex + 1) % tracks.length;
+    state.currentTrack = tracks[nextIndex];
+  }
+  
+  state.currentTime = 0;
+  state.isPlaying = true;
+},
+
+prevTrack: (state) => {
+  if (!state.currentPlaylist || !state.currentTrack) return;
+  
+  const tracks = state.currentPlaylist.tracks;
+  if (tracks.length === 0) return;
+  
+  if (state.shuffle) {
+    if (state.shuffledOrder.length === 0) {
+      state.shuffledOrder = generateShuffledOrder(tracks.length);
+      state.currentShuffleIndex = state.shuffledOrder.length - 1;
+    } else {
+      state.currentShuffleIndex--;
       
-      const tracks = state.currentPlaylist.tracks;
-      let prevIndex: number;
-      
-      if (state.shuffle && state.shuffledOrder.length > 0) {
-        prevIndex = state.currentShuffleIndex - 1;
-        if (prevIndex < 0) return;
-        const trackIndex = state.shuffledOrder[prevIndex];
-        state.currentTrack = tracks[trackIndex];
-        state.currentShuffleIndex = prevIndex;
-      } else {
-        const currentIndex = tracks.findIndex(t => t._id === state.currentTrack!._id);
-        if (currentIndex <= 0) return;
-        state.currentTrack = tracks[currentIndex - 1];
+      if (state.currentShuffleIndex < 0) {
+        state.shuffledOrder = generateShuffledOrder(tracks.length);
+        state.currentShuffleIndex = state.shuffledOrder.length - 1;
       }
-      
-      state.currentTime = 0;
-      state.isPlaying = true;
-    },
+    }
+    
+    const trackIndex = state.shuffledOrder[state.currentShuffleIndex];
+    state.currentTrack = tracks[trackIndex];
+  } else {
+    const currentIndex = tracks.findIndex(t => t._id === state.currentTrack!._id);
+    const prevIndex = currentIndex <= 0 ? tracks.length - 1 : currentIndex - 1;
+    state.currentTrack = tracks[prevIndex];
+  }
+  
+  state.currentTime = 0;
+  state.isPlaying = true;
+},
     
     seekToTime: (state, action: PayloadAction<number>) => {
       state.currentTime = Math.min(Math.max(0, action.payload), state.duration);
