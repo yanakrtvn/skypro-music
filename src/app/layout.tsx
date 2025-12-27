@@ -4,7 +4,6 @@ import "./globals.css";
 import styles from './layout.module.css';
 import ReduxProvider from "@/store/ReduxProvider";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
-import Bar from "@/components/Bar/Bar";
 
 const montserrat = Montserrat({
   subsets: ["latin", "cyrillic"],
@@ -31,7 +30,6 @@ export default function RootLayout({
               {children}
               <AudioPlayer />
             </div>
-            <Bar />
           </div>
         </ReduxProvider>
       </body>

@@ -1,12 +1,27 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useAppSelector } from '@/store/hooks';
+import { useEffect, useRef, useCallback } from 'react';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setCurrentTime, setDuration, nextTrack } from '@/store/features/trackSlice';
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { currentTrack, isPlaying } = useAppSelector((state) => state.tracks);
+  const { currentTrack, isPlaying, loop, volume } = useAppSelector((state) => state.tracks);
+  const dispatch = useAppDispatch();
+
+  const handleTrackEnded = useCallback(() => {
+    if (loop) {
+      const audioElement = audioRef.current;
+      if (audioElement) {
+        audioElement.currentTime = 0;
+        audioElement.play().catch(console.error);
+      }
+    } else {
+      setTimeout(() => {
+        dispatch(nextTrack());
+      }, 100);
+    }
+  }, [loop, dispatch]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -14,10 +29,8 @@ export default function AudioPlayer() {
 
     const handleAudio = async () => {
       try {
-        setError(null);
-
         if (!currentTrack.track_file) {
-          setError('У трека отсутствует аудиофайл');
+          console.error('У трека отсутствует аудиофайл');
           return;
         }
 
@@ -29,38 +42,68 @@ export default function AudioPlayer() {
           audioElement.src = newSrc;
           audioElement.load();
           
-          // Ждем, пока трек загрузится
-          audioElement.addEventListener('loadeddata', () => {
+          audioElement.volume = volume;
+          audioElement.loop = loop;
+          
+          const onLoadedData = () => {
+            if (!isNaN(audioElement.duration)) {
+              dispatch(setDuration(audioElement.duration));
+            }
             if (isPlaying) {
-              audioElement.play().catch(() => {
-                setError('Ошибка воспроизведения');
+              audioElement.play().catch((error) => {
+                console.error('Ошибка воспроизведения:', error);
               });
             }
-          }, { once: true });
+          };
+          
+          audioElement.addEventListener('loadeddata', onLoadedData, { once: true });
         } else {
+          audioElement.volume = volume;
+          audioElement.loop = loop;
+          
           if (isPlaying) {
             await audioElement.play();
           } else {
             audioElement.pause();
           }
         }
-      } catch {
-        setError('Ошибка аудио');
+      } catch (error) {
+        console.error('Ошибка аудио:', error);
       }
     };
 
     handleAudio();
 
-    const handleAudioError = () => {
-      setError('Ошибка загрузки аудиофайла');
+    const handleTimeUpdate = () => {
+      dispatch(setCurrentTime(audioElement.currentTime));
     };
 
-    audioElement.addEventListener('error', handleAudioError);
-    
-    return () => {
-      audioElement.removeEventListener('error', handleAudioError);
+    const handleLoadedMetadata = () => {
+      if (!isNaN(audioElement.duration)) {
+        dispatch(setDuration(audioElement.duration));
+      }
     };
-  }, [isPlaying, currentTrack]);
+
+    const handleEnded = () => {
+      handleTrackEnded();
+    };
+
+    audioElement.addEventListener('timeupdate', handleTimeUpdate);
+    audioElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audioElement.addEventListener('ended', handleEnded);
+
+    return () => {
+      audioElement.removeEventListener('timeupdate', handleTimeUpdate);
+      audioElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audioElement.removeEventListener('ended', handleEnded);
+    };
+  }, [isPlaying, currentTrack, volume, loop, dispatch, handleTrackEnded]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.loop = loop;
+    }
+  }, [loop]);
 
   return (
     <audio

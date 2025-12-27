@@ -1,33 +1,94 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { togglePlay } from '@/store/features/trackSlice';
+import { 
+  togglePlay, 
+  setVolume, 
+  setLoop, 
+  setShuffle, 
+  nextTrack, 
+  prevTrack, 
+  seekToTime,
+  setDuration,
+  setCurrentTime 
+} from '@/store/features/trackSlice';
 import styles from './Bar.module.css';
 
 function formatTime(seconds: number): string {
+  if (isNaN(seconds)) return '0:00';
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 export default function Bar() {
-  const { currentTrack, isPlaying } = useAppSelector((state) => state.tracks);
+  const { 
+    currentTrack, 
+    isPlaying, 
+    volume, 
+    duration, 
+    currentTime,
+    loop,
+    shuffle
+  } = useAppSelector((state) => state.tracks);
   const dispatch = useAppDispatch();
-  const [volume, setVolume] = useState(0.5);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  const handleTrackEnd = useCallback(() => {
+  if (loop) {
+    dispatch(seekToTime(0));
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.currentTime = 0;
+      audioElement.play().catch(console.error);
+    }
+  } else {
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.pause();
+    }
+    
+    setTimeout(() => {
+      dispatch(nextTrack());
+    }, 100);
+  }
+}, [loop, dispatch]);
+
+  useEffect(() => {
+    const audioElement = document.querySelector('audio');
+    if (!audioElement) return;
+
+    const handleTimeUpdate = () => {
+      dispatch(setCurrentTime(audioElement.currentTime));
+      if (!isNaN(audioElement.duration)) {
+        dispatch(setDuration(audioElement.duration));
+      }
+    };
+
+    const handleLoadedData = () => {
+      if (!isNaN(audioElement.duration)) {
+        dispatch(setDuration(audioElement.duration));
+      }
+    };
+
+    audioElement.addEventListener('timeupdate', handleTimeUpdate);
+    audioElement.addEventListener('loadeddata', handleLoadedData);
+    audioElement.addEventListener('ended', handleTrackEnd);
+
+    return () => {
+      audioElement.removeEventListener('timeupdate', handleTimeUpdate);
+      audioElement.removeEventListener('loadeddata', handleLoadedData);
+      audioElement.removeEventListener('ended', handleTrackEnd);
+    };
+  }, [dispatch, handleTrackEnd]);
 
   useEffect(() => {
     const audioElement = document.querySelector('audio');
     if (audioElement) {
-      audioRef.current = audioElement as HTMLAudioElement;
       audioElement.volume = volume;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
     }
   }, [volume]);
 
@@ -36,25 +97,71 @@ export default function Bar() {
   };
 
   const handleNextTrack = () => {
-    alert('Еще не реализовано');
+    dispatch(nextTrack());
   };
 
   const handlePrevTrack = () => {
-    alert('Еще не реализовано');
+    dispatch(prevTrack());
   };
 
   const handleShuffle = () => {
-    alert('Еще не реализовано');
+    dispatch(setShuffle(!shuffle));
   };
 
   const handleLoop = () => {
-    alert('Еще не реализовано');
+    dispatch(setLoop(!loop));
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
+    dispatch(setVolume(newVolume));
   };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressBarRef.current || !duration) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const newTime = clickPosition * duration;
+    
+    dispatch(seekToTime(newTime));
+    
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.currentTime = newTime;
+    }
+  };
+
+  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    handleProgressDrag(e);
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      handleProgressDrag(moveEvent as unknown as React.MouseEvent<HTMLDivElement>);
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleProgressDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !progressBarRef.current || !duration) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const clickPosition = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = clickPosition * duration;
+    
+    dispatch(setCurrentTime(newTime));
+  };
+
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const volumePercentage = volume * 100;
 
   if (!currentTrack) {
     return null;
@@ -63,10 +170,30 @@ export default function Bar() {
   return (
     <div className={styles.bar}>
       <div className={styles.bar__content}>
-        <div className={styles.bar__playerProgress}></div>
+        <div 
+          className={styles.bar__playerProgress}
+          ref={progressBarRef}
+          onClick={handleProgressClick}
+          onMouseDown={handleProgressMouseDown}
+          style={{ cursor: 'pointer', position: 'relative' }}
+        >
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: `${progressPercentage}%`,
+              background: '#ad61ff',
+              transition: isDragging ? 'none' : 'width 0.1s linear'
+            }}
+          />
+        </div>
+        
         <div className={styles.bar__playerBlock}>
           <div className={styles.bar__player}>
             <div className={styles.player__controls}>
+              {/* Кнопка предыдущего трека */}
               <div 
                 className={styles.player__btnPrev} 
                 onClick={handlePrevTrack}
@@ -77,6 +204,7 @@ export default function Bar() {
                 </svg>
               </div>
               
+              {/* Кнопка play/pause */}
               <div 
                 className={styles.player__btnPlay} 
                 onClick={handlePlayPause}
@@ -87,6 +215,7 @@ export default function Bar() {
                 </svg>
               </div>
               
+              {/* Кнопка следующего трека */}
               <div 
                 className={styles.player__btnNext} 
                 onClick={handleNextTrack}
@@ -97,8 +226,9 @@ export default function Bar() {
                 </svg>
               </div>
               
+              {/* Кнопка повтора */}
               <div 
-                className={styles.player__btnRepeat} 
+                className={`${styles.player__btnRepeat} ${loop ? styles.btnActive : ''}`}
                 onClick={handleLoop}
                 style={{ cursor: 'pointer' }}
               >
@@ -107,8 +237,9 @@ export default function Bar() {
                 </svg>
               </div>
               
+              {/* Кнопка перемешивания */}
               <div 
-                className={styles.player__btnShuffle} 
+                className={`${styles.player__btnShuffle} ${shuffle ? styles.btnActive : ''}`}
                 onClick={handleShuffle}
                 style={{ cursor: 'pointer' }}
               >
@@ -136,8 +267,21 @@ export default function Bar() {
                   <span className={styles.trackPlay__albumLink}>{currentTrack.author}</span>
                 </div>
               </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                marginLeft: '20px',
+                fontSize: '14px',
+                color: '#696969'
+              }}>
+                <span>{formatTime(currentTime)}</span>
+                <span style={{ margin: '0 5px' }}>/</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
           </div>
+          
           <div className={styles.bar__volumeBlock}>
             <div className={styles.volume__content}>
               <div className={styles.volume__image}>
@@ -154,6 +298,9 @@ export default function Bar() {
                   step="0.01"
                   value={volume}
                   onChange={handleVolumeChange}
+                  style={{
+                    background: `linear-gradient(to right, #ad61ff ${volumePercentage}%, #797979 ${volumePercentage}%)`
+                  }}
                 />
               </div>
             </div>
