@@ -1,43 +1,60 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import Header from '@/components/Header/Header';
-import CenterBlock from '@/components/CenterBlock/CenterBlock';
+import PlaylistCenterBlock from '@/components/CenterBlock/PlaylistCenterBlock';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import Bar from '@/components/Bar/Bar';
-import styles from './page.module.css';
+import styles from '../../page.module.css';
 import { ApiClient } from '@/api/client';
 import { useAppDispatch } from '@/store/hooks';
 import { setPlaylistTracks } from '@/store/features/trackSlice';
-import { Track as TrackType } from '@/types/api';
 
-export default function Home() {
+export default function PlaylistPage() {
+  const params = useParams();
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playlistName, setPlaylistName] = useState('');
   const dispatch = useAppDispatch();
+  const playlistId = params?.id ? Number(params.id) : null;
 
   useEffect(() => {
-    const loadTracks = async () => {
+    const loadPlaylist = async () => {
+      if (!playlistId || isNaN(playlistId)) {
+        setError('Неверный ID плейлиста');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const tracks = await ApiClient.getAllTracks();
+        
+        const playlist = await ApiClient.getPlaylistById(playlistId);
+        
+        setPlaylistName(playlist.name || 'Плейлист');
+        
+        const tracks = playlist.items || [];
+        
         dispatch(setPlaylistTracks(tracks));
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки треков');
+        console.error('Ошибка загрузки плейлиста:', err);
+        setError(err instanceof Error ? err.message : 'Ошибка загрузки подборки');
       } finally {
         setLoading(false);
       }
     };
 
-    loadTracks();
-  }, [dispatch]);
+    loadPlaylist();
+  }, [playlistId, dispatch]);
 
   if (loading) {
     return (
       <div className={styles.wrapper}>
         <div className={styles.container}>
-          <div className={styles.loading}>Загрузка...</div>
+          <div className={styles.loading}>Загрузка подборки...</div>
         </div>
       </div>
     );
@@ -58,7 +75,7 @@ export default function Home() {
       <div className={styles.container}>
         <main className={styles.main}>
           <Header />
-          <CenterBlock />
+          <PlaylistCenterBlock title={playlistName} />
           <Sidebar />
         </main>
         <Bar />

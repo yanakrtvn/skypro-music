@@ -38,24 +38,24 @@ export default function Bar() {
   const progressBarRef = useRef<HTMLDivElement>(null);
 
   const handleTrackEnd = useCallback(() => {
-  if (loop) {
-    dispatch(seekToTime(0));
-    const audioElement = document.querySelector('audio') as HTMLAudioElement;
-    if (audioElement) {
-      audioElement.currentTime = 0;
-      audioElement.play().catch(console.error);
+    if (loop) {
+      dispatch(seekToTime(0));
+      const audioElement = document.querySelector('audio') as HTMLAudioElement;
+      if (audioElement) {
+        audioElement.currentTime = 0;
+        audioElement.play().catch(console.error);
+      }
+    } else {
+      const audioElement = document.querySelector('audio') as HTMLAudioElement;
+      if (audioElement) {
+        audioElement.pause();
+      }
+      
+      setTimeout(() => {
+        dispatch(nextTrack());
+      }, 100);
     }
-  } else {
-    const audioElement = document.querySelector('audio') as HTMLAudioElement;
-    if (audioElement) {
-      audioElement.pause();
-    }
-    
-    setTimeout(() => {
-      dispatch(nextTrack());
-    }, 100);
-  }
-}, [loop, dispatch]);
+  }, [loop, dispatch]);
 
   useEffect(() => {
     const audioElement = document.querySelector('audio');
@@ -252,13 +252,11 @@ export default function Bar() {
             <div className={styles.player__trackPlay}>
               <div className={styles.trackPlay__contain}>
                 <div className={styles.trackPlay__image}>
-                  {currentTrack.logo ? (
-                    <img src={currentTrack.logo} alt={currentTrack.name} />
-                  ) : (
-                    <svg className={styles.trackPlay__svg}>
-                      <use xlinkHref="/images/icon/sprite.svg#icon-note"></use>
-                    </svg>
-                  )}
+                  <img 
+                    src="/images/icon/note.svg" 
+                    alt="Note icon" 
+                    className={styles.trackPlay__svg}
+                  />
                 </div>
                 <div className={styles.trackPlay__author}>
                   <span className={styles.trackPlay__authorLink}>{currentTrack.name}</span>
@@ -268,16 +266,23 @@ export default function Bar() {
                 </div>
               </div>
               
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                marginLeft: '20px',
-                fontSize: '14px',
-                color: '#696969'
-              }}>
-                <span>{formatTime(currentTime)}</span>
-                <span style={{ margin: '0 5px' }}>/</span>
-                <span>{formatTime(duration)}</span>
+              <div className={styles.trackPlay__likeDislike}>
+                <div className={styles.trackPlay__like}>
+                  <svg className={styles.trackPlay__likeSvg}>
+                    <use xlinkHref="/images/icon/sprite.svg#icon-like"></use>
+                  </svg>
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginLeft: '20px',
+                  fontSize: '14px',
+                  color: '#696969'
+                }}>
+                  <span>{formatTime(currentTime)}</span>
+                  <span style={{ margin: '0 5px' }}>/</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
               </div>
             </div>
           </div>

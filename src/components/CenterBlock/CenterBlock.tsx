@@ -1,22 +1,30 @@
-'use client'
+'use client';
 import { useState, useEffect } from 'react'
 import Track from '@/components/Track/Track'
 import styles from './CenterBlock.module.css'
-import { tracksData } from '@/data/tracks'
 import FilterList from '@/components/FilterList/FilterList'
 import FilterLength from '@/components/FilterLength/FilterLength'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setPlaylistTracks } from '@/store/features/trackSlice'
+import { ApiClient } from '@/api/client'
+import { Track as TrackType } from '@/types/api'
 
 function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
+  if (!Array.isArray(arr)) {
+    console.error('getUniqueValuesFromTracks: arr не массив', arr);
+    return [];
+  }
+  
   const uniqueValues = new Set<string>();
   
   arr.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    
     const value = item[key] as unknown;
     
     if (Array.isArray(value)) {
       (value as string[]).forEach((v) => {
-        if (v) uniqueValues.add(v);
+        if (v && typeof v === 'string') uniqueValues.add(v);
       });
     } else if (typeof value === 'string') {
       uniqueValues.add(value);
@@ -31,21 +39,42 @@ function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): st
 export default function CenterBlock() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [tracks, setTracks] = useState<TrackType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const dispatch = useAppDispatch()
   
-  const uniqueArtists = getUniqueValuesFromTracks(tracksData, 'author')
+  const { currentPlaylist } = useAppSelector((state) => state.tracks)
+  
+  useEffect(() => {
+  const loadTracks = async () => {
+    try {
+      setLoading(true);
+      const tracksData = await ApiClient.getAllTracks();
+      setTracks(tracksData);
+      dispatch(setPlaylistTracks(tracksData));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки треков');
+      setTracks([]);
+      dispatch(setPlaylistTracks([]));
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  loadTracks();
+}, [dispatch]);
+  
+  const uniqueArtists = getUniqueValuesFromTracks(tracks, 'author')
   
   const uniqueGenres = [...new Set(
-    tracksData.flatMap(track => track.genre)
+    tracks.flatMap(track => track.genre)
   )].sort()
   
   const uniqueYears = [...new Set(
-    tracksData.map(track => track.release_date.split('-')[0])
+    tracks.map(track => track.release_date.split('-')[0])
   )].sort((a, b) => b.localeCompare(a))
-  
-  useEffect(() => {
-    dispatch(setPlaylistTracks(tracksData))
-  }, [dispatch])
   
   const toggleFilter = (filterName: string) => {
     if (activeFilter === filterName) {
@@ -81,11 +110,27 @@ export default function CenterBlock() {
     }
   }
   
-  const filteredTracks = tracksData.filter(track => 
+  const filteredTracks = tracks.filter(track => 
     track.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
     track.album.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  
+  if (loading) {
+    return (
+      <div className={styles.centerblock}>
+        <div className={styles.loading}>Загрузка треков...</div>
+      </div>
+    )
+  }
+  
+  if (error) {
+    return (
+      <div className={styles.centerblock}>
+        <div className={styles.error}>Ошибка: {error}</div>
+      </div>
+    )
+  }
   
   return (
     <div className={styles.centerblock}>

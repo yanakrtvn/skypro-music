@@ -1,27 +1,21 @@
-import Track from '@/components/Track/Track'
-import styles from './CenterBlock.module.css'
+'use client';
 
-export default function PlaylistCenterBlock() {
-  const playlistTracks = [
-    { 
-      id: 1, 
-      title: "Guilt", 
-      artist: "Nero", 
-      album: "Welcome Reality", 
-      duration: "4:44" 
-    },
-    { 
-      id: 2, 
-      title: "Elektro", 
-      artist: "Dynoro, Outwork, Mr. Gee", 
-      album: "Elektro", 
-      duration: "2:22" 
-    }
-  ]
+import { useAppSelector } from '@/store/hooks';
+import Track from '@/components/Track/Track';
+import styles from './CenterBlock.module.css';
+
+interface PlaylistCenterBlockProps {
+  title: string;
+}
+
+export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps) {
+  const { currentPlaylist } = useAppSelector((state) => state.tracks);
+  
+  const tracks = currentPlaylist?.tracks || [];
 
   return (
     <div className={styles.centerblock}>
-      <h2 className={styles.centerblock__h2}>Мой плейлист</h2>
+      <h2 className={styles.centerblock__h2}>{title}</h2>
       
       <div className={styles.centerblock__content}>
         <div className={styles.content__title}>
@@ -36,11 +30,15 @@ export default function PlaylistCenterBlock() {
         </div>
         
         <div className={styles.content__playlist}>
-          {playlistTracks.map(track => (
-            <Track key={track.id} track={track} />
-          ))}
+          {tracks.length > 0 ? (
+            tracks.map(track => (
+              <Track key={track._id} track={track} />
+            ))
+          ) : (
+            <div className={styles.noTracks}>Нет треков в плейлисте</div>
+          )}
         </div>
       </div>
     </div>
-  )
+  );
 }
