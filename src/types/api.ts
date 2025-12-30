@@ -41,7 +41,7 @@ export interface Playlist {
 }
 
 export interface APIError {
-  message: string;
+  message?: string;
   success?: boolean;
   detail?: string;
   code?: string;
@@ -51,4 +51,36 @@ export interface FilterData {
   artists: string[];
   genres: string[];
   years: string[];
+}
+
+// Тип для ответа при регистрации
+export interface SignupResponse {
+  success: boolean;
+  message: string;
+  result: {
+    username: string;
+    email: string;
+    _id: number;
+  };
+}
+
+// Тип для ответа при входе
+export interface LoginResponse {
+  email: string;
+  username: string;
+  _id: number;
+}
+
+// Тип для ответа с треками
+export interface TracksResponse {
+  success: boolean;
+  data: Track[];
+  message?: string;
+}
+
+// Тип для ответа с подборками
+export interface PlaylistsResponse {
+  success: boolean;
+  data: Playlist[];
+  message?: string;
 }
