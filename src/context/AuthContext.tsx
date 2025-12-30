@@ -34,34 +34,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Функция для обновления access токена
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const currentRefreshToken = localStorage.getItem('refreshToken');
     
     if (!currentRefreshToken) {
-      console.log('No refresh token available');
       return null;
     }
 
     try {
-      console.log('Refreshing access token...');
       const response = await ApiClient.refreshToken(currentRefreshToken);
       const newAccessToken = response.access;
       
       localStorage.setItem('accessToken', newAccessToken);
       setAccessToken(newAccessToken);
       
-      console.log('Access token refreshed successfully');
       return newAccessToken;
     } catch (err) {
       console.error('Failed to refresh access token:', err);
-      // Если refresh токен недействителен, выходим из системы
       logout();
       return null;
     }
   }, []);
 
-  // Проверяем валидность токена при загрузке
   useEffect(() => {
     const initAuth = async () => {
       const storedUser = localStorage.getItem('user');
@@ -70,15 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (storedUser && storedAccessToken && storedRefreshToken) {
         try {
-          // Проверяем валидность access токена
           const isValid = await ApiClient.verifyToken(storedAccessToken);
           
           if (!isValid) {
-            // Пытаемся обновить токен
             const newAccessToken = await refreshAccessToken();
             
             if (!newAccessToken) {
-              // Не удалось обновить, очищаем данные
               localStorage.removeItem('user');
               localStorage.removeItem('accessToken');
               localStorage.removeItem('refreshToken');
@@ -86,20 +77,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setAccessToken(null);
               setRefreshToken(null);
             } else {
-              // Обновили успешно, устанавливаем пользователя
               setUser(JSON.parse(storedUser));
               setAccessToken(newAccessToken);
               setRefreshToken(storedRefreshToken);
             }
           } else {
-            // Токен валиден, устанавливаем пользователя
             setUser(JSON.parse(storedUser));
             setAccessToken(storedAccessToken);
             setRefreshToken(storedRefreshToken);
           }
         } catch (err) {
           console.error('Error during auth initialization:', err);
-          // В случае ошибки очищаем данные
+
           localStorage.removeItem('user');
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -116,13 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      // 1. Авторизуем пользователя
+
       const userData = await ApiClient.login(email, password);
       
-      // 2. Получаем токены
       const tokens = await ApiClient.getTokens(email, password);
-      
-      // 3. Сохраняем данные
+
       setUser(userData);
       setAccessToken(tokens.access);
       setRefreshToken(tokens.refresh);
@@ -130,8 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('accessToken', tokens.access);
       localStorage.setItem('refreshToken', tokens.refresh);
-      
-      // 4. Перенаправляем на главную
+
       router.push('/');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка входа';
@@ -147,10 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      // 1. Регистрируем пользователя
       const response = await ApiClient.signup(email, password, username);
-      
-      // 2. Автоматически входим после регистрации
+
       await login(email, password);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка регистрации';

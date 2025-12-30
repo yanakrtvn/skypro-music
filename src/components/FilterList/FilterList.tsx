@@ -8,6 +8,12 @@ interface FilterListProps {
 }
 
 export default function FilterList({ items, onItemClick }: FilterListProps) {
+  const handleClick = (item: string) => {
+    if (onItemClick) {
+      onItemClick(item);
+    }
+  };
+
   return (
     <div className={styles.filter__content}>
       <div className={styles.filter__list}>
@@ -15,9 +21,9 @@ export default function FilterList({ items, onItemClick }: FilterListProps) {
           <div 
             key={item} 
             className={styles.filter__item}
-            onClick={() => onItemClick && onItemClick(item)}
+            onClick={() => handleClick(item)}
           >
-            {item}
+            <div className={styles.filter__itemText}>{item}</div>
           </div>
         ))}
       </div>

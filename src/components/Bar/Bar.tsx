@@ -14,6 +14,7 @@ import {
   setCurrentTime 
 } from '@/store/features/trackSlice';
 import styles from './Bar.module.css';
+import { Track as TrackType } from '@/types/api';
 
 function formatTime(seconds: number): string {
   if (isNaN(seconds)) return '0:00';
@@ -35,7 +36,87 @@ export default function Bar() {
   const dispatch = useAppDispatch();
   
   const [isDragging, setIsDragging] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkIfFavorite = () => {
+      if (currentTrack) {
+        try {
+          const favoritesString = localStorage.getItem('favoriteTracks');
+          const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
+          const isTrackFavorite = favoriteTracks.some(
+            (track: TrackType) => track._id === currentTrack._id
+          );
+          setIsFavorite(isTrackFavorite);
+        } catch (err) {
+          console.error('Ошибка при проверке избранных треков:', err);
+          setIsFavorite(false);
+        }
+      } else {
+        setIsFavorite(false);
+      }
+    };
+
+    checkIfFavorite();
+    
+    const handleFavoritesUpdated = () => {
+      checkIfFavorite();
+    };
+
+    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
+    
+    return () => {
+      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
+    };
+  }, [currentTrack]);
+
+  useEffect(() => {
+    const handleCurrentTrackFavoriteUpdated = (e: CustomEvent) => {
+      if (e.detail?.isFavorite !== undefined) {
+        setIsFavorite(e.detail.isFavorite);
+      }
+    };
+
+    window.addEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
+    };
+  }, []);
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentTrack) return;
+    
+    try {
+      const favoritesString = localStorage.getItem('favoriteTracks');
+      const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
+      
+      const trackIndex = favoriteTracks.findIndex(
+        (track: TrackType) => track._id === currentTrack._id
+      );
+      
+      if (trackIndex === -1) {
+        const updatedFavorites = [...favoriteTracks, currentTrack];
+        localStorage.setItem('favoriteTracks', JSON.stringify(updatedFavorites));
+        setIsFavorite(true);
+      } else {
+        const updatedFavorites = favoriteTracks.filter(
+          (track: TrackType) => track._id !== currentTrack._id
+        );
+        localStorage.setItem('favoriteTracks', JSON.stringify(updatedFavorites));
+        setIsFavorite(false);
+      }
+      
+      window.dispatchEvent(new Event('favoritesUpdated'));
+      
+      console.log(`Трек ${isFavorite ? 'удален из' : 'добавлен в'} избранные`);
+      
+    } catch (err) {
+      console.error('Ошибка при обновлении избранных:', err);
+    }
+  };
 
   const handleTrackEnd = useCallback(() => {
     if (loop) {
@@ -267,23 +348,44 @@ export default function Bar() {
               </div>
               
               <div className={styles.trackPlay__likeDislike}>
-                <div className={styles.trackPlay__like}>
-                  <svg className={styles.trackPlay__likeSvg}>
-                    <use xlinkHref="/images/icon/sprite.svg#icon-like"></use>
-                  </svg>
-                </div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  marginLeft: '20px',
-                  fontSize: '14px',
-                  color: '#696969'
-                }}>
-                  <span>{formatTime(currentTime)}</span>
-                  <span style={{ margin: '0 5px' }}>/</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
+              <div 
+                className={styles.trackPlay__likeWrapper}
+                onClick={handleToggleFavorite}
+                style={{ 
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <svg 
+                  width="14" 
+                  height="12" 
+                  viewBox="0 0 14 12"
+                  fill="none"
+                  stroke={isFavorite ? "#ad61ff" : "#696969"}
+                  strokeWidth="2"
+                  style={{
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <path d="M6.65242 1.89789C7.92929 0.420498 10.0241 0.282701 11.3595 1.70955C12.6948 3.1364 12.7837 5.46349 11.6265 6.99496L6.49976 12L1.37305 6.99496C0.215841 5.46349 0.304779 3.1364 1.64012 1.70955C2.97547 0.282701 5.07025 0.420498 6.34712 1.89789L6.49976 2.06847L6.65242 1.89789Z" />
+                </svg>
               </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                marginLeft: '20px',
+                fontSize: '14px',
+                color: '#696969'
+              }}>
+                <span>{formatTime(currentTime)}</span>
+                <span style={{ margin: '0 5px' }}>/</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
             </div>
           </div>
           

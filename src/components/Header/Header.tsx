@@ -56,7 +56,7 @@ export default function Header() {
           </li>
           <li className={styles.menu__item}>
             <Link href="/favorites" className={styles.menu__link} onClick={closeMenu}>
-              Мой плейлист
+              Мои треки
             </Link>
           </li>
           {user ? (
