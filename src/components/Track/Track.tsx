@@ -1,34 +1,33 @@
 'use client';
 
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { setCurrentTrack, playTrack } from '@/store/features/trackSlice';
-import { TrackType } from '@/types/track';
-import { tracksData } from '@/data/tracks';
+import { setCurrentTrack } from '@/store/features/trackSlice';
+import { Track as TrackType } from '@/types/api';
 import styles from './Track.module.css';
 
 function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 export default function Track({ track }: TrackProps) {
-  const { currentTrack, isPlaying } = useAppSelector((state) => state.tracks);
+  const { currentTrack, isPlaying, currentPlaylist } = useAppSelector((state) => state.tracks);
   const dispatch = useAppDispatch();
 
   const isCurrentTrack = currentTrack?._id === track._id;
 
   const handleTrackClick = () => {
-    const mainPlaylist = {
-      id: 1,
-      name: 'Главное',
-      tracks: tracksData
-    };
+    if (!currentPlaylist) {
+      console.error('No current playlist');
+      return;
+    }
     
     if (!isCurrentTrack) {
-      dispatch(setCurrentTrack({ track, playlist: mainPlaylist }));
-    } else {
-      dispatch(playTrack());
+      dispatch(setCurrentTrack({ 
+        track, 
+        playlist: currentPlaylist 
+      }));
     }
   };
 
@@ -42,15 +41,17 @@ export default function Track({ track }: TrackProps) {
                 <div className={styles.dotInner}></div>
               </div>
             ) : (
-              <svg className={styles.track__titleSvg}>
-                <use xlinkHref="/images/icon/sprite.svg#icon-note"></use>
-              </svg>
+              <img 
+                src="/images/icon/note.svg" 
+                alt="Note icon" 
+                className={styles.track__titleSvg}
+              />
             )}
           </div>
           <div className={styles.track__titleText}>
             <div className={styles.track__titleLink}>
               {track.name}
-              {!track.track_file && (
+              {(!track.track_file || track.track_file === '') && (
                 <span style={{ color: 'red', fontSize: '10px', marginLeft: '5px' }}>
                   (нет аудио)
                 </span>

@@ -104,3 +104,30 @@
   height: auto;
   border-radius: 12px;
 }
+
+.loading {
+  color: #ffffff;
+  padding: 20px;
+  text-align: center;
+}
+
+.error {
+  color: #ff6b6b;
+  padding: 20px;
+  text-align: center;
+}
+
+.playlist__image {
+  position: relative;
+}
+
+.playlist__name {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  color: white;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 4px;
+}

@@ -41,10 +41,6 @@
   stroke: #4e4e4e;
 }
 
-.track__titleText {
-  /*  стиль для контейнера текста */
-}
-
 .track__titleLink {
   font-style: normal;
   font-weight: 400;
