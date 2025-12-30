@@ -9,12 +9,12 @@ import { setPlaylistTracks } from '@/store/features/trackSlice'
 import { ApiClient } from '@/api/client'
 import { Track as TrackType } from '@/types/api'
 
-
 interface FilterState {
-  artist: string | null;
-  year: string | null;
-  genre: string | null;
+  artist: string[];
+  year: string[];
+  genre: string[];
 }
+
 function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
   if (!Array.isArray(arr)) {
     console.error('getUniqueValuesFromTracks: arr не массив', arr);
@@ -46,9 +46,9 @@ export default function CenterBlock() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [selectedFilters, setSelectedFilters] = useState<FilterState>({
-    artist: null,
-    year: null,
-    genre: null
+    artist: [],
+    year: [],
+    genre: []
   })
   const [tracks, setTracks] = useState<TrackType[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,13 +101,32 @@ export default function CenterBlock() {
   
   const handleFilterSelect = (filterName: string, value: string) => {
     setSelectedFilters(prev => {
-      const newValue = prev[filterName as keyof FilterState] === value ? null : value;
-      return {
-        ...prev,
-        [filterName]: newValue
-      };
+      const currentValues = prev[filterName as keyof FilterState];
+      const valueIndex = currentValues.indexOf(value);
+      
+      if (valueIndex === -1) {
+        return {
+          ...prev,
+          [filterName]: [...currentValues, value]
+        };
+      } else {
+        return {
+          ...prev,
+          [filterName]: currentValues.filter((_, index) => index !== valueIndex)
+        };
+      }
     });
-    setActiveFilter(null); 
+  };
+  
+  const clearFilter = (filterName: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      [filterName]: []
+    }));
+
+    if (activeFilter === filterName) {
+      setActiveFilter(null);
+    }
   };
   
   const getFilterItems = () => {
@@ -135,27 +154,38 @@ export default function CenterBlock() {
         return 0;
     }
   };
+
+  const getFilterDisplayText = (filterName: string) => {
+    const selected = selectedFilters[filterName as keyof FilterState];
+    if (selected.length === 0) {
+      return '';
+    } else if (selected.length === 1) {
+      return `: ${selected[0]}`;
+    } else {
+      return `: ${selected.length}`;
+    }
+  };
   
-  // Фильтрация треков
   const filteredTracks = useMemo(() => {
     return tracks.filter(track => {
-      // Поиск по тексту
+
       const matchesSearch = searchQuery === '' || 
         track.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
         track.album.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Фильтр по исполнителю
-      const matchesArtist = !selectedFilters.artist || 
-        track.author === selectedFilters.artist;
+      const matchesArtist = selectedFilters.artist.length === 0 || 
+        selectedFilters.artist.includes(track.author);
       
       // Фильтр по году
-      const matchesYear = !selectedFilters.year || 
-        track.release_date.startsWith(selectedFilters.year);
+      const trackYear = track.release_date.split('-')[0];
+      const matchesYear = selectedFilters.year.length === 0 || 
+        selectedFilters.year.includes(trackYear);
       
-      // Фильтр по жанру
-      const matchesGenre = !selectedFilters.genre || 
-        track.genre.includes(selectedFilters.genre);
+      // Фильтр по жанру 
+      const matchesGenre = selectedFilters.genre.length === 0 || 
+        track.genre.some(genre => selectedFilters.genre.includes(genre));
       
       return matchesSearch && matchesArtist && matchesYear && matchesGenre;
     });
@@ -178,123 +208,135 @@ export default function CenterBlock() {
   }
   
   return (
-    <div className={styles.centerblock}>
-      <div className={styles.centerblock__search}>
-        <svg className={styles.search__svg}>
-          <use xlinkHref="/images/icon/sprite.svg#icon-search"></use>
-        </svg>
-        <input
-          className={styles.search__text}
-          type="search"
-          placeholder="Поиск"
-          name="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+  <div className={styles.centerblock}>
+    <div className={styles.centerblock__search}>
+      <svg className={styles.search__svg}>
+        <use xlinkHref="/images/icon/sprite.svg#icon-search"></use>
+      </svg>
+      <input
+        className={styles.search__text}
+        type="search"
+        placeholder="Поиск"
+        name="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+    </div>
+    
+    <h2 className={styles.centerblock__h2}>Треки</h2>
+    
+    {/* Панель фильтров */}
+    <div className={styles.centerblock__filter}>
+      <div className={styles.filter__title}>Искать по:</div>
+      
+      <div className={styles.filter__container}>
+        <button 
+          className={`${styles.filter__button} ${
+            selectedFilters.artist.length > 0 ? styles.filter__buttonActive : ''
+          }`}
+          onClick={() => toggleFilter('artist')}
+        >
+          исполнителю
+          {selectedFilters.artist.length > 0 && (
+            <span className={styles.filter__selected}>
+              {getFilterDisplayText('artist')}
+            </span>
+          )}
+        </button>
+        {activeFilter === 'artist' && (
+          <>
+            <FilterList 
+              items={getFilterItems()} 
+              selectedItems={selectedFilters.artist}
+              onItemClick={(item) => handleFilterSelect('artist', item)}
+              onClear={() => clearFilter('artist')}
+            />
+            <FilterLength count={getFilterCount()} />
+          </>
+        )}
       </div>
       
-      <h2 className={styles.centerblock__h2}>Треки</h2>
-      
-      {/* Панель фильтров */}
-      <div className={styles.centerblock__filter}>
-        <div className={styles.filter__title}>Искать по:</div>
-        
-        <div className={styles.filter__container}>
-          <button 
-            className={`${styles.filter__button} ${
-              activeFilter === 'artist' || selectedFilters.artist ? styles.filter__buttonActive : ''
-            }`}
-            onClick={() => toggleFilter('artist')}
-          >
-            исполнителю
-            {selectedFilters.artist && (
-              <span className={styles.filter__selected}>: {selectedFilters.artist}</span>
-            )}
-          </button>
-          {activeFilter === 'artist' && (
-            <>
-              <FilterList 
-                items={getFilterItems()} 
-                onItemClick={(item) => handleFilterSelect('artist', item)}
-              />
-              <FilterLength count={getFilterCount()} />
-            </>
+      <div className={styles.filter__container}>
+        <button 
+          className={`${styles.filter__button} ${
+            selectedFilters.year.length > 0 ? styles.filter__buttonActive : ''
+          }`}
+          onClick={() => toggleFilter('year')}
+        >
+          году выпуска
+          {selectedFilters.year.length > 0 && (
+            <span className={styles.filter__selected}>
+              {getFilterDisplayText('year')}
+            </span>
           )}
-        </div>
-        
-        <div className={styles.filter__container}>
-          <button 
-            className={`${styles.filter__button} ${
-              activeFilter === 'year' || selectedFilters.year ? styles.filter__buttonActive : ''
-            }`}
-            onClick={() => toggleFilter('year')}
-          >
-            году выпуска
-            {selectedFilters.year && (
-              <span className={styles.filter__selected}>: {selectedFilters.year}</span>
-            )}
-          </button>
-          {activeFilter === 'year' && (
-            <>
-              <FilterList 
-                items={getFilterItems()} 
-                onItemClick={(item) => handleFilterSelect('year', item)}
-              />
-              <FilterLength count={getFilterCount()} />
-            </>
-          )}
-        </div>
-        
-        <div className={styles.filter__container}>
-          <button 
-            className={`${styles.filter__button} ${
-              activeFilter === 'genre' || selectedFilters.genre ? styles.filter__buttonActive : ''
-            }`}
-            onClick={() => toggleFilter('genre')}
-          >
-            жанру
-            {selectedFilters.genre && (
-              <span className={styles.filter__selected}>: {selectedFilters.genre}</span>
-            )}
-          </button>
-          {activeFilter === 'genre' && (
-            <>
-              <FilterList 
-                items={getFilterItems()} 
-                onItemClick={(item) => handleFilterSelect('genre', item)}
-              />
-              <FilterLength count={getFilterCount()} />
-            </>
-          )}
-        </div>
+        </button>
+        {activeFilter === 'year' && (
+          <>
+            <FilterList 
+              items={getFilterItems()} 
+              selectedItems={selectedFilters.year}
+              onItemClick={(item) => handleFilterSelect('year', item)}
+              onClear={() => clearFilter('year')}
+            />
+            <FilterLength count={getFilterCount()} />
+          </>
+        )}
       </div>
       
-      <div className={styles.centerblock__content}>
-        <div className={styles.content__title}>
-          <div className={`${styles.playlistTitle__col} ${styles.col01}`}>ТРЕК</div>
-          <div className={`${styles.playlistTitle__col} ${styles.col02}`}>ИСПОЛНИТЕЛЬ</div>
-          <div className={`${styles.playlistTitle__col} ${styles.col03}`}>АЛЬБОМ</div>
-          <div className={`${styles.playlistTitle__col} ${styles.col04}`}>
-            <svg className={styles.playlistTitle__svg}>
-              <use xlinkHref="/images/icon/sprite.svg#icon-watch"></use>
-            </svg>
-          </div>
-        </div>
-        
-        <div className={styles.content__playlist}>
-          {filteredTracks.length > 0 ? (
-            filteredTracks.map(track => (
-              <Track key={track._id} track={track} />
-            ))
-          ) : (
-            <div className={styles.noResults}>
-              {searchQuery || selectedFilters.artist || selectedFilters.year || selectedFilters.genre ? 
-                'По вашему запросу ничего не найдено' : 
-                'Треков пока нет'}
-            </div>
+      <div className={styles.filter__container}>
+        <button 
+          className={`${styles.filter__button} ${
+            selectedFilters.genre.length > 0 ? styles.filter__buttonActive : ''
+          }`}
+          onClick={() => toggleFilter('genre')}
+        >
+          жанру
+          {selectedFilters.genre.length > 0 && (
+            <span className={styles.filter__selected}>
+              {getFilterDisplayText('genre')}
+            </span>
           )}
-        </div>
+        </button>
+        {activeFilter === 'genre' && (
+          <>
+            <FilterList 
+              items={getFilterItems()} 
+              selectedItems={selectedFilters.genre}
+              onItemClick={(item) => handleFilterSelect('genre', item)}
+              onClear={() => clearFilter('genre')}
+            />
+            <FilterLength count={getFilterCount()} />
+          </>
+        )}
       </div>
     </div>
-  )
+    
+    <div className={styles.centerblock__content}>
+      <div className={styles.content__title}>
+        <div className={`${styles.playlistTitle__col} ${styles.col01}`}>ТРЕК</div>
+        <div className={`${styles.playlistTitle__col} ${styles.col02}`}>ИСПОЛНИТЕЛЬ</div>
+        <div className={`${styles.playlistTitle__col} ${styles.col03}`}>АЛЬБОМ</div>
+        <div className={`${styles.playlistTitle__col} ${styles.col04}`}>
+          <svg className={styles.playlistTitle__svg}>
+            <use xlinkHref="/images/icon/sprite.svg#icon-watch"></use>
+          </svg>
+        </div>
+      </div>
+      
+      <div className={styles.content__playlist}>
+        {filteredTracks.length > 0 ? (
+          filteredTracks.map(track => (
+            <Track key={track._id} track={track} />
+          ))
+        ) : (
+          <div className={styles.noResults}>
+            {searchQuery || selectedFilters.artist.length > 0 || selectedFilters.year.length > 0 || selectedFilters.genre.length > 0 ? 
+              'По вашему запросу ничего не найдено' : 
+              'Треков пока нет'}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)
 }
