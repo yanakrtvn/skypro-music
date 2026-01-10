@@ -21,6 +21,7 @@ type InitialStateType = {
   currentShuffleIndex: number;
   currentPlaylist: PlaylistType | null;
   allTracks: TrackType[];
+  playlistTracks: TrackType[];
 };
 
 const initialState: InitialStateType = {
@@ -31,6 +32,7 @@ const initialState: InitialStateType = {
   currentTime: 0,
   loop: false,
   shuffle: false,
+  playlistTracks: [],
   shuffledOrder: [],
   currentShuffleIndex: -1,
   currentPlaylist: {
@@ -223,7 +225,6 @@ const trackSlice = createSlice({
       state.currentTime = 0;
       state.isPlaying = true;
       
-      console.log('New current track:', state.currentTrack?.name);
     },
     
     seekToTime: (state, action: PayloadAction<number>) => {
@@ -231,7 +232,7 @@ const trackSlice = createSlice({
     },
 
     setPlaylistTracks: (state, action: PayloadAction<TrackType[]>) => {
-      console.log('Setting playlist tracks, count:', action.payload.length);
+      state.playlistTracks = action.payload;
       
       if (state.currentPlaylist) {
         state.currentPlaylist.tracks = action.payload;
@@ -245,8 +246,6 @@ const trackSlice = createSlice({
     },
 
     setSpecificPlaylist: (state, action: PayloadAction<{id: number, name: string, tracks: TrackType[]}>) => {
-      console.log('Setting specific playlist:', action.payload.name, 'with', action.payload.tracks.length, 'tracks');
-      
       state.currentPlaylist = {
         id: action.payload.id,
         name: action.payload.name,

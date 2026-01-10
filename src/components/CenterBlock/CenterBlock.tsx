@@ -50,7 +50,7 @@ export default function CenterBlock() {
     year: [],
     genre: []
   })
-  const [tracks, setTracks] = useState<TrackType[]>([])
+  const { playlistTracks } = useAppSelector((state) => state.tracks)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const dispatch = useAppDispatch()
@@ -60,12 +60,10 @@ export default function CenterBlock() {
       try {
         setLoading(true);
         const tracksData = await ApiClient.getAllTracks();
-        setTracks(tracksData);
         dispatch(setPlaylistTracks(tracksData));
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Ошибка загрузки треков');
-        setTracks([]);
         dispatch(setPlaylistTracks([]));
       } finally {
         setLoading(false);
@@ -76,16 +74,16 @@ export default function CenterBlock() {
   }, [dispatch]);
   
   const uniqueArtists = useMemo(() => 
-    getUniqueValuesFromTracks(tracks, 'author'), 
-    [tracks]
+    getUniqueValuesFromTracks(playlistTracks, 'author'), 
+    [playlistTracks]
   );
   
   const uniqueGenres = useMemo(() => {
-    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    if (!Array.isArray(playlistTracks) || playlistTracks.length === 0) return [];
     
     const genresSet = new Set<string>();
     
-    tracks.forEach(track => {
+    playlistTracks.forEach(track => {
       if (track.genre && Array.isArray(track.genre)) {
         track.genre.forEach(genre => {
           if (genre && typeof genre === 'string') {
@@ -96,14 +94,14 @@ export default function CenterBlock() {
     });
     
     return Array.from(genresSet).sort();
-  }, [tracks]);
+  }, [playlistTracks]);
   
   const uniqueYears = useMemo(() => {
-    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    if (!Array.isArray(playlistTracks) || playlistTracks.length === 0) return [];
     
     const yearsSet = new Set<string>();
     
-    tracks.forEach(track => {
+    playlistTracks.forEach(track => {
       if (track.release_date && typeof track.release_date === 'string') {
         const year = track.release_date.split('-')[0];
         if (year && year.length === 4 && !isNaN(Number(year))) {
@@ -111,13 +109,13 @@ export default function CenterBlock() {
         }
       }
     });
-    
+
     return Array.from(yearsSet).sort((a, b) => {
       const yearA = parseInt(a, 10);
       const yearB = parseInt(b, 10);
       return yearB - yearA;
     });
-  }, [tracks]);
+  }, [playlistTracks]);
   
   const toggleFilter = (filterName: string) => {
     if (activeFilter === filterName) {
@@ -193,11 +191,12 @@ export default function CenterBlock() {
       return `: ${selected.length}`;
     }
   };
-
+  
+  // Исправленная функция фильтрации
   const filteredTracks = useMemo(() => {
-    if (!Array.isArray(tracks)) return [];
+    if (!Array.isArray(playlistTracks)) return [];
     
-    return tracks.filter(track => {
+    return playlistTracks.filter(track => {
       if (!track) return false;
 
       // Фильтр по поиску
@@ -214,7 +213,7 @@ export default function CenterBlock() {
       
       if (!matchesArtist) return false;
       
-      // Фильтр по году - исправленная логика
+      // Фильтр по году
       if (selectedFilters.year.length > 0) {
         if (!track.release_date) return false;
         
@@ -237,15 +236,15 @@ export default function CenterBlock() {
       
       return true;
     });
-  }, [tracks, searchQuery, selectedFilters]);
-
+  }, [playlistTracks, searchQuery, selectedFilters]);
+  
   const getTracksCountByYear = useMemo(() => {
     if (!selectedFilters.year || selectedFilters.year.length === 0) return {};
     
     const counts: Record<string, number> = {};
     
     selectedFilters.year.forEach(year => {
-      const count = tracks.filter(track => {
+      const count = playlistTracks.filter(track => {
         if (!track.release_date) return false;
         const trackYear = track.release_date.split('-')[0];
         return trackYear === year;
@@ -255,7 +254,7 @@ export default function CenterBlock() {
     });
     
     return counts;
-  }, [tracks, selectedFilters.year]);
+  }, [playlistTracks, selectedFilters.year]);
 
   if (loading) {
     return (
@@ -397,15 +396,15 @@ export default function CenterBlock() {
       
       <div className={styles.content__playlist}>
         {filteredTracks.length > 0 ? (
-  filteredTracks
-    .filter((track) => track && track._id !== undefined)
-    .map((track, index) => (
-      <Track 
-        key={`main-${track._id}-${index}-${track.name}`}
-        track={track} 
-      />
-    ))
-) : (
+          filteredTracks
+            .filter((track) => track && track._id !== undefined)
+            .map((track, index) => (
+              <Track 
+                key={`main-${track._id}-${index}-${track.name}`}
+                track={track} 
+              />
+            ))
+        ) : (
           <div className={styles.noResults}>
             {searchQuery || selectedFilters.artist.length > 0 || selectedFilters.year.length > 0 || selectedFilters.genre.length > 0 ? 
               'По вашему запросу ничего не найдено' : 

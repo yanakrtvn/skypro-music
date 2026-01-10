@@ -93,7 +93,6 @@ export class ApiClient {
     throw new Error(response.message || 'Неверный формат ответа');
   }
 
-  // Получение токенов
   static async getTokens(email: string, password: string): Promise<TokenResponse> {
     return this.request<TokenResponse>('/user/token/', {
       method: 'POST',
@@ -101,7 +100,6 @@ export class ApiClient {
     });
   }
 
-  // Обновление токена
   static async refreshToken(refreshToken: string): Promise<{ access: string }> {
     return this.request<{ access: string }>('/user/token/refresh/', {
       method: 'POST',
@@ -109,7 +107,6 @@ export class ApiClient {
     });
   }
 
-  // Проверка валидности токена
   static async verifyToken(accessToken: string): Promise<boolean> {
     try {
       await this.request('/user/token/verify/', {
@@ -122,7 +119,6 @@ export class ApiClient {
     }
   }
 
-  // Получить все треки
   static async getAllTracks(): Promise<Track[]> {
     const response = await this.request<{ 
       success: boolean; 
@@ -137,7 +133,6 @@ export class ApiClient {
     throw new Error(response.message || 'Failed to load tracks');
   }
 
-  // Получить подборки
   static async getPlaylists(): Promise<Playlist[]> {
     try {
       const response = await this.request<{ 
@@ -158,34 +153,95 @@ export class ApiClient {
   }
 
   static async getPlaylistById(id: number): Promise<Playlist> {
-    const response = await this.request<{
-      success?: boolean;
-      data?: Playlist;
-      _id?: number;
-      name?: string;
-      items?: Track[];
-      tracks?: Track[];
-      detail?: string;
-      message?: string;
-    }>(`/catalog/selection/${id}/`);
-    
-    if (response.success === false) {
-      throw new Error(response.detail || response.message || 'Failed to load playlist');
-    }
+    try {
+      type PlaylistResponse = {
+        success?: boolean;
+        data?: {
+          _id?: number;
+          name?: string;
+          items?: (Track | number)[];
+          tracks?: (Track | number)[];
+        };
+        _id?: number;
+        name?: string;
+        items?: (Track | number)[];
+        tracks?: (Track | number)[];
+        detail?: string;
+        message?: string;
+      };
 
-    if (response.data) {
-      return response.data;
-    }
-    
-    if (response._id && response.name) {
+      const response = await this.request<PlaylistResponse>(`/catalog/selection/${id}/`);
+
+      const getValidTracks = (items: (Track | number)[] | undefined): Track[] => {
+        if (!Array.isArray(items) || items.length === 0) {
+          return [];
+        }
+
+        const firstItem = items[0];
+        if (typeof firstItem === 'number') {
+          return [];
+        }
+
+        return items.filter((item): item is Track => {
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+
+          const track = item as Track;
+          return (
+            track._id !== undefined &&
+            track.name !== undefined &&
+            track.author !== undefined
+          );
+        });
+      };
+
+      if (response.success !== false && response.data) {
+
+        const items = response.data.items || response.data.tracks || [];
+        const validTracks = getValidTracks(items);
+
+        return {
+          _id: response.data._id || id,
+          name: response.data.name || `Плейлист ${id}`,
+          items: validTracks,
+          tracks: validTracks
+        };
+      }
+
+      if (response._id || response.name) {
+        
+        const items = response.items || response.tracks || [];
+        const validTracks = getValidTracks(items);
+        
+        return {
+          _id: response._id || id,
+          name: response.name || `Плейлист ${id}`,
+          items: validTracks,
+          tracks: validTracks
+        };
+      }
+      
+      if (response.success === false) {
+        throw new Error(response.detail || response.message || 'Failed to load playlist');
+      }
+      
       return {
-        _id: response._id,
-        name: response.name,
-        items: response.items || response.tracks || []
+        _id: id,
+        name: `Плейлист ${id}`,
+        items: [],
+        tracks: []
+      };
+      
+    } catch (error) {
+      console.error('Error in getPlaylistById:', error);
+      return {
+        _id: id,
+        name: `Плейлист ${id}`,
+        items: [],
+        tracks: []
       };
     }
-    
-    throw new Error('Invalid playlist response format');
   }
 
   static async getFavoriteTracks(accessToken: string): Promise<Track[]> {

@@ -29,8 +29,14 @@ export default function AudioPlayer() {
 
     const handleAudio = async () => {
       try {
-        if (!currentTrack.track_file) {
-          console.error('У трека отсутствует аудиофайл');
+        if (!currentTrack.track_file || currentTrack.track_file.trim() === '') {
+          console.warn('У трека отсутствует аудиофайл:', currentTrack.name);
+          
+          if (!loop) {
+            setTimeout(() => {
+              dispatch(nextTrack());
+            }, 1000);
+          }
           return;
         }
 
@@ -52,6 +58,11 @@ export default function AudioPlayer() {
             if (isPlaying) {
               audioElement.play().catch((error) => {
                 console.error('Ошибка воспроизведения:', error);
+                if (!loop) {
+                  setTimeout(() => {
+                    dispatch(nextTrack());
+                  }, 1000);
+                }
               });
             }
           };
@@ -62,13 +73,26 @@ export default function AudioPlayer() {
           audioElement.loop = loop;
           
           if (isPlaying) {
-            await audioElement.play();
+            await audioElement.play().catch((error) => {
+              console.error('Ошибка воспроизведения:', error);
+              if (!loop) {
+                setTimeout(() => {
+                  dispatch(nextTrack());
+                }, 1000);
+              }
+            });
           } else {
             audioElement.pause();
           }
         }
       } catch (error) {
         console.error('Ошибка аудио:', error);
+        
+        if (!loop) {
+          setTimeout(() => {
+            dispatch(nextTrack());
+          }, 1000);
+        }
       }
     };
 

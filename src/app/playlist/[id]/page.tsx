@@ -40,26 +40,22 @@ export default function PlaylistPage() {
 
       try {
         setLoading(true);
-        
+
         const defaultName = getPlaylistNameById(playlistId);
         setPlaylistName(defaultName);
 
         const playlist = await ApiClient.getPlaylistById(playlistId);
 
-        if (playlist.name && playlist.name.trim() !== '') {
-          setPlaylistName(playlist.name);
-        }
+        setPlaylistName(defaultName);
         
         const tracks = playlist.items || playlist.tracks || [];
-        
-        console.log(`Загружен плейлист "${defaultName}" с ${tracks.length} треками`);
         
         dispatch(setPlaylistTracks(tracks));
         setError(null);
       } catch (err) {
         console.error('Ошибка загрузки плейлиста:', err);
         setError(err instanceof Error ? err.message : 'Ошибка загрузки подборки');
-
+        
         const defaultName = getPlaylistNameById(playlistId);
         setPlaylistName(defaultName);
         dispatch(setPlaylistTracks([]));

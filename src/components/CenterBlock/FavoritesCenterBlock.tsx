@@ -80,19 +80,19 @@ export default function FavoritesCenterBlock() {
         
         <div className={styles.content__playlist}>
           {favoriteTracks.length > 0 ? (
-  favoriteTracks
-    .filter((track) => track && track._id !== undefined)
-    .map((track, index) => (
-      <Track 
-        key={`favorites-${track._id}-${index}-${track.name}`}
-        track={track} 
-      />
-    ))
-) : (
-  <div className={styles.noTracks}>
-    Здесь пока нет треков. Добавьте их, нажав на сердечко!
-  </div>
-)}
+            favoriteTracks
+              .filter((track) => track && track._id !== undefined)
+              .map((track, index) => (
+                <Track 
+                  key={`favorites-${track._id}-${index}-${track.name}`}
+                  track={track} 
+                />
+              ))
+          ) : (
+            <div className={styles.noTracks}>
+              Здесь пока нет треков. Добавьте их, нажав на сердечко!
+            </div>
+          )}
         </div>
       </div>
     </div>

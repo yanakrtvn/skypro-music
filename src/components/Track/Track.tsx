@@ -97,8 +97,6 @@ export default function Track({ track }: TrackProps) {
         window.dispatchEvent(event);
       }
       
-      console.log(`Трек "${track.name}" ${newFavoriteState ? 'добавлен в' : 'удален из'} избранные`);
-      
     } catch (err) {
       console.error('Ошибка при обновлении избранных:', err);
     }

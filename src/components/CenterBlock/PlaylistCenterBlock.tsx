@@ -10,10 +10,10 @@ interface PlaylistCenterBlockProps {
 }
 
 export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps) {
-  const { currentPlaylist } = useAppSelector((state) => state.tracks);
+  const { playlistTracks } = useAppSelector((state) => state.tracks);
   
-  const tracks = currentPlaylist?.tracks || [];
-
+  const tracks = playlistTracks || [];
+  
   return (
     <div className={styles.centerblock}>
       <h2 className={styles.centerblock__h2}>{title}</h2>
@@ -33,13 +33,16 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
         <div className={styles.content__playlist}>
           {tracks.length > 0 ? (
             tracks
-              .filter((track: TrackType) => track && track._id !== undefined)
-              .map((track: TrackType, index: number) => (
-                <Track 
-                  key={`playlist-${track._id}-${index}-${track.name}`}
-                  track={track} 
-                />
-              ))
+              .filter((track: TrackType) => track && track._id !== undefined && typeof track === 'object')
+              .map((track: TrackType, index: number) => {
+                console.log(`Трек ${index}:`, track);
+                return (
+                  <Track 
+                    key={`playlist-${track._id}-${index}-${track.name}`}
+                    track={track} 
+                  />
+                );
+              })
           ) : (
             <div className={styles.emptyPlaylist}>
               В данном плейлисте пока нет треков

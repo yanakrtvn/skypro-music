@@ -16,8 +16,8 @@ export default function Sidebar() {
 
   const getPlaylistImage = (playlistId: number): string => {
     const imageMap: Record<number, string> = {
-      1: '/images/playlist01.png', 
-      2: '/images/playlist02.png', 
+      1: '/images/playlist01.png',
+      2: '/images/playlist02.png',
       3: '/images/playlist03.png',
     };
     
@@ -35,58 +35,33 @@ export default function Sidebar() {
   };
 
   const sidebarPlaylistOrder = [1, 2, 3]; 
-
   useEffect(() => {
     const loadPlaylists = async () => {
       try {
         setLoading(true);
         const playlistsData = await ApiClient.getPlaylists();
-
-        const validPlaylists = playlistsData
-          .filter(playlist => {
-            if (!playlist || typeof playlist !== 'object') {
-              return false;
-            }
-            
-            if (!playlist._id || typeof playlist._id !== 'number') {
-              return false;
-            }
-            
-            return playlist._id >= 1 && playlist._id <= 3;
-          })
-          .map(playlist => ({
-            ...playlist,
-            name: getPlaylistNameById(playlist._id),
-          }));
-
-        const sortedPlaylists = sidebarPlaylistOrder
-          .map(id => validPlaylists.find(playlist => playlist._id === id))
-          .filter(Boolean) as Playlist[];
+        const finalPlaylists: Playlist[] = [];
         
-        if (sortedPlaylists.length < 3) {
-          const finalPlaylists: Playlist[] = [];
+        sidebarPlaylistOrder.forEach(id => {
+          const playlistFromApi = playlistsData.find(p => p && p._id === id);
           
-          sidebarPlaylistOrder.forEach(id => {
-            const existingPlaylist = sortedPlaylists.find(p => p._id === id);
-            
-            if (existingPlaylist) {
-              finalPlaylists.push(existingPlaylist);
-            } else {
-              finalPlaylists.push({
-                _id: id,
-                name: getPlaylistNameById(id),
-                items: [],
-                tracks: []
-              });
-            }
-          });
-          
-          console.log('Финальные плейлисты:', finalPlaylists);
-          setPlaylists(finalPlaylists);
-        } else {
-          setPlaylists(sortedPlaylists);
-        }
+          if (playlistFromApi) {
+            finalPlaylists.push({
+              ...playlistFromApi,
+              _id: id,
+              name: getPlaylistNameById(id)
+            });
+          } else {
+            finalPlaylists.push({
+              _id: id,
+              name: getPlaylistNameById(id),
+              items: [],
+              tracks: []
+            });
+          }
+        });
         
+        setPlaylists(finalPlaylists);
         setError(null);
       } catch (err) {
         console.error('Error loading playlists:', err);
@@ -106,7 +81,7 @@ export default function Sidebar() {
 
     loadPlaylists();
   }, []);
-  
+
   const processedPlaylists = useMemo(() => {
     return playlists.map(playlist => ({
       ...playlist,
@@ -116,19 +91,17 @@ export default function Sidebar() {
 
   return (
     <div className={styles.sidebar}>
-      {user && (
-        <div className={styles.sidebar__personal}>
-          <div className={styles.sidebar__icon} onClick={logout}>
-            <Image
-              src="/images/icon/выход.svg"
-              alt="Выйти"
-              width={20}
-              height={20}
-              className={styles.sidebar__iconImg}
-            />
-          </div>
+      <div className={styles.sidebar__personal}>
+        <div className={styles.sidebar__icon} onClick={logout}>
+          <Image
+            src="/images/icon/выход.svg"
+            alt="Выйти"
+            width={20}
+            height={20}
+            className={styles.sidebar__iconImg}
+          />
         </div>
-      )}
+      </div>
       
       <div className={styles.sidebar__block}>
         {loading ? (
