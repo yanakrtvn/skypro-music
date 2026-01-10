@@ -218,3 +218,46 @@
   position: relative;
   margin-right: 10px;
 }
+
+.filter__selected {
+  color: #ad61ff;
+  margin-left: 5px;
+  font-weight: 600;
+}
+
+.filter__count {
+  color: #696969;
+  font-size: 14px;
+  margin-left: 5px;
+  font-weight: 400;
+}
+
+.noResults {
+  text-align: center;
+  padding: 40px;
+  color: #696969;
+  font-size: 16px;
+  width: 100%;
+}
+
+.emptyPlaylist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #696969;
+  font-size: 16px;
+  text-align: center;
+  padding: 40px;
+  background: rgba(49, 49, 49, 0.3);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.emptyPlaylist::before {
+  content: "🎵";
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}

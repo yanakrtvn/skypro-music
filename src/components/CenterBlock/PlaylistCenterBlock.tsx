@@ -3,6 +3,7 @@
 import { useAppSelector } from '@/store/hooks';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
+import { Track as TrackType } from '@/types/api';
 
 interface PlaylistCenterBlockProps {
   title: string;
@@ -31,11 +32,18 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
         
         <div className={styles.content__playlist}>
           {tracks.length > 0 ? (
-            tracks.map(track => (
-              <Track key={track._id} track={track} />
-            ))
+            tracks
+              .filter((track: TrackType) => track && track._id !== undefined)
+              .map((track: TrackType, index: number) => (
+                <Track 
+                  key={`playlist-${track._id}-${index}-${track.name}`}
+                  track={track} 
+                />
+              ))
           ) : (
-            <div className={styles.noTracks}>Нет треков в плейлисте</div>
+            <div className={styles.emptyPlaylist}>
+              В данном плейлисте пока нет треков
+            </div>
           )}
         </div>
       </div>

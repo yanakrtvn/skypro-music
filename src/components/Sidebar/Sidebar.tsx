@@ -14,47 +14,91 @@ export default function Sidebar() {
   const [error, setError] = useState<string | null>(null);
   const { user, logout } = useAuth();
 
-  const getPlaylistImage = (id: number): string => {
-    const imageNumber = (id % 3) + 1;
-    return `/images/playlist0${imageNumber}.png`;
+  const getPlaylistImage = (playlistId: number): string => {
+    const imageMap: Record<number, string> = {
+      1: '/images/playlist01.png', 
+      2: '/images/playlist02.png', 
+      3: '/images/playlist03.png',
+    };
+    
+    return imageMap[playlistId] || `/images/playlist01.png`;
   };
 
-  const processedPlaylists = useMemo(() => {
-    return playlists.map(playlist => ({
-      ...playlist,
-      name: playlist.name || `Плейлист ${playlist._id}`,
-      imageUrl: getPlaylistImage(playlist._id)
-    }));
-  }, [playlists]);
+  const getPlaylistNameById = (id: number): string => {
+    const nameMap: Record<number, string> = {
+      1: 'Плейлист дня',
+      2: '100 танцевальных хитов',
+      3: 'Инди-заряд',
+    };
+    
+    return nameMap[id] || `Плейлист #${id}`;
+  };
+
+  const sidebarPlaylistOrder = [1, 2, 3]; 
 
   useEffect(() => {
     const loadPlaylists = async () => {
       try {
         setLoading(true);
         const playlistsData = await ApiClient.getPlaylists();
-               
-        const validPlaylists = playlistsData.filter(playlist => {
-          if (!playlist || typeof playlist !== 'object') {
-            console.warn('Некорректный плейлист:', playlist);
-            return false;
-          }
-          
-          if (!playlist._id || typeof playlist._id !== 'number') {
-            console.warn('Плейлист без ID:', playlist);
-            return false;
-          }
-          
-          return true;
-        });
+
+        const validPlaylists = playlistsData
+          .filter(playlist => {
+            if (!playlist || typeof playlist !== 'object') {
+              return false;
+            }
+            
+            if (!playlist._id || typeof playlist._id !== 'number') {
+              return false;
+            }
+            
+            return playlist._id >= 1 && playlist._id <= 3;
+          })
+          .map(playlist => ({
+            ...playlist,
+            name: getPlaylistNameById(playlist._id),
+          }));
+
+        const sortedPlaylists = sidebarPlaylistOrder
+          .map(id => validPlaylists.find(playlist => playlist._id === id))
+          .filter(Boolean) as Playlist[];
         
-        const uniquePlaylists = validPlaylists.slice(0, 3);
+        if (sortedPlaylists.length < 3) {
+          const finalPlaylists: Playlist[] = [];
+          
+          sidebarPlaylistOrder.forEach(id => {
+            const existingPlaylist = sortedPlaylists.find(p => p._id === id);
+            
+            if (existingPlaylist) {
+              finalPlaylists.push(existingPlaylist);
+            } else {
+              finalPlaylists.push({
+                _id: id,
+                name: getPlaylistNameById(id),
+                items: [],
+                tracks: []
+              });
+            }
+          });
+          
+          console.log('Финальные плейлисты:', finalPlaylists);
+          setPlaylists(finalPlaylists);
+        } else {
+          setPlaylists(sortedPlaylists);
+        }
         
-        setPlaylists(uniquePlaylists);
         setError(null);
       } catch (err) {
         console.error('Error loading playlists:', err);
-        setError('Ошибка загрузки подборок');
-        setPlaylists([]);
+        const manualPlaylists: Playlist[] = sidebarPlaylistOrder.map(id => ({
+          _id: id,
+          name: getPlaylistNameById(id),
+          items: [],
+          tracks: []
+        }));
+        
+        setPlaylists(manualPlaylists);
+        setError('Ошибка загрузки подборок, отображены базовые плейлисты');
       } finally {
         setLoading(false);
       }
@@ -62,6 +106,13 @@ export default function Sidebar() {
 
     loadPlaylists();
   }, []);
+  
+  const processedPlaylists = useMemo(() => {
+    return playlists.map(playlist => ({
+      ...playlist,
+      imageUrl: getPlaylistImage(playlist._id)
+    }));
+  }, [playlists]);
 
   return (
     <div className={styles.sidebar}>
@@ -89,11 +140,6 @@ export default function Sidebar() {
         ) : (
           <div className={styles.sidebar__list}>
             {processedPlaylists.map((playlist) => {
-              if (typeof playlist._id !== 'number' || isNaN(playlist._id)) {
-                console.error('Invalid playlist ID:', playlist._id, playlist);
-                return null;
-              }
-              
               const playlistId = String(playlist._id);
               
               return (
@@ -102,18 +148,20 @@ export default function Sidebar() {
                     className={styles.sidebar__link} 
                     href={`/playlist/${playlistId}`}
                   >
-                    <Image
-                      className={styles.sidebar__img}
-                      src={playlist.imageUrl}
-                      alt={`${playlist.name}`}
-                      width={250}
-                      height={150}
-                      priority={playlist._id <= 3}
-                      onError={(e) => {
-                        console.error(`Не удалось загрузить изображение: ${playlist.imageUrl}`);
-                        e.currentTarget.src = '/images/default-playlist.jpg';
-                      }}
-                    />
+                    <div className={styles.playlist__container}>
+                      <Image
+                        className={styles.sidebar__img}
+                        src={playlist.imageUrl}
+                        alt={`${playlist.name}`}
+                        width={250}
+                        height={150}
+                        priority={playlist._id <= 3}
+                        onError={(e) => {
+                          console.error(`Не удалось загрузить изображение: ${playlist.imageUrl}`);
+                          e.currentTarget.src = '/images/default-playlist.jpg';
+                        }}
+                      />
+                    </div>
                   </Link>
                 </div>
               );

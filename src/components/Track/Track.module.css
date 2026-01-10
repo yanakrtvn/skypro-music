@@ -200,3 +200,33 @@
     opacity: 0;
   }
 }
+
+.track__time {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 100px;
+  justify-content: flex-end;
+}
+
+.track__likeButton {
+  cursor: pointer;
+  margin-right: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.track__likeButton:hover {
+  background-color: rgba(173, 97, 255, 0.1);
+}
+
+.track__likeSvg {
+  width: 14px;
+  height: 12px;
+  transition: all 0.2s ease;
+}

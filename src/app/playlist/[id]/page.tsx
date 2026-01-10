@@ -11,6 +11,16 @@ import { ApiClient } from '@/api/client';
 import { useAppDispatch } from '@/store/hooks';
 import { setPlaylistTracks } from '@/store/features/trackSlice';
 
+const getPlaylistNameById = (id: number): string => {
+  const nameMap: Record<number, string> = {
+    1: 'Плейлист дня',
+    2: '100 танцевальных хитов',
+    3: 'Инди-заряд',
+  };
+  
+  return nameMap[id] || `Плейлист #${id}`;
+};
+
 export default function PlaylistPage() {
   const params = useParams();
   
@@ -31,17 +41,28 @@ export default function PlaylistPage() {
       try {
         setLoading(true);
         
+        const defaultName = getPlaylistNameById(playlistId);
+        setPlaylistName(defaultName);
+
         const playlist = await ApiClient.getPlaylistById(playlistId);
+
+        if (playlist.name && playlist.name.trim() !== '') {
+          setPlaylistName(playlist.name);
+        }
         
-        setPlaylistName(playlist.name || 'Плейлист');
+        const tracks = playlist.items || playlist.tracks || [];
         
-        const tracks = playlist.items || [];
+        console.log(`Загружен плейлист "${defaultName}" с ${tracks.length} треками`);
         
         dispatch(setPlaylistTracks(tracks));
         setError(null);
       } catch (err) {
         console.error('Ошибка загрузки плейлиста:', err);
         setError(err instanceof Error ? err.message : 'Ошибка загрузки подборки');
+
+        const defaultName = getPlaylistNameById(playlistId);
+        setPlaylistName(defaultName);
+        dispatch(setPlaylistTracks([]));
       } finally {
         setLoading(false);
       }
@@ -60,7 +81,7 @@ export default function PlaylistPage() {
     );
   }
 
-  if (error) {
+  if (error && !playlistName) {
     return (
       <div className={styles.wrapper}>
         <div className={styles.container}>

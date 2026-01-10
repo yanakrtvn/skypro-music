@@ -80,16 +80,44 @@ export default function CenterBlock() {
     [tracks]
   );
   
-  const uniqueGenres = useMemo(() => 
-    [...new Set(tracks.flatMap(track => track.genre))].sort(), 
-    [tracks]
-  );
+  const uniqueGenres = useMemo(() => {
+    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    
+    const genresSet = new Set<string>();
+    
+    tracks.forEach(track => {
+      if (track.genre && Array.isArray(track.genre)) {
+        track.genre.forEach(genre => {
+          if (genre && typeof genre === 'string') {
+            genresSet.add(genre);
+          }
+        });
+      }
+    });
+    
+    return Array.from(genresSet).sort();
+  }, [tracks]);
   
-  const uniqueYears = useMemo(() => 
-    [...new Set(tracks.map(track => track.release_date.split('-')[0]))]
-      .sort((a, b) => b.localeCompare(a)), 
-    [tracks]
-  );
+  const uniqueYears = useMemo(() => {
+    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    
+    const yearsSet = new Set<string>();
+    
+    tracks.forEach(track => {
+      if (track.release_date && typeof track.release_date === 'string') {
+        const year = track.release_date.split('-')[0];
+        if (year && year.length === 4 && !isNaN(Number(year))) {
+          yearsSet.add(year);
+        }
+      }
+    });
+    
+    return Array.from(yearsSet).sort((a, b) => {
+      const yearA = parseInt(a, 10);
+      const yearB = parseInt(b, 10);
+      return yearB - yearA;
+    });
+  }, [tracks]);
   
   const toggleFilter = (filterName: string) => {
     if (activeFilter === filterName) {
@@ -165,32 +193,70 @@ export default function CenterBlock() {
       return `: ${selected.length}`;
     }
   };
-  
-  const filteredTracks = useMemo(() => {
-    return tracks.filter(track => {
 
+  const filteredTracks = useMemo(() => {
+    if (!Array.isArray(tracks)) return [];
+    
+    return tracks.filter(track => {
+      if (!track) return false;
+
+      // Фильтр по поиску
       const matchesSearch = searchQuery === '' || 
-        track.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        track.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        track.album.toLowerCase().includes(searchQuery.toLowerCase());
+        (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (track.album && track.album.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      if (!matchesSearch) return false;
       
       // Фильтр по исполнителю
       const matchesArtist = selectedFilters.artist.length === 0 || 
-        selectedFilters.artist.includes(track.author);
+        (track.author && selectedFilters.artist.includes(track.author));
       
-      // Фильтр по году
-      const trackYear = track.release_date.split('-')[0];
-      const matchesYear = selectedFilters.year.length === 0 || 
-        selectedFilters.year.includes(trackYear);
+      if (!matchesArtist) return false;
       
-      // Фильтр по жанру 
-      const matchesGenre = selectedFilters.genre.length === 0 || 
-        track.genre.some(genre => selectedFilters.genre.includes(genre));
+      // Фильтр по году - исправленная логика
+      if (selectedFilters.year.length > 0) {
+        if (!track.release_date) return false;
+        
+        const trackYear = track.release_date.split('-')[0];
+        const matchesYear = trackYear && selectedFilters.year.includes(trackYear);
+        
+        if (!matchesYear) return false;
+      }
       
-      return matchesSearch && matchesArtist && matchesYear && matchesGenre;
+      // Фильтр по жанру
+      if (selectedFilters.genre.length > 0) {
+        if (!track.genre || !Array.isArray(track.genre)) return false;
+        
+        const matchesGenre = track.genre.some(genre => 
+          genre && selectedFilters.genre.includes(genre)
+        );
+        
+        if (!matchesGenre) return false;
+      }
+      
+      return true;
     });
   }, [tracks, searchQuery, selectedFilters]);
-  
+
+  const getTracksCountByYear = useMemo(() => {
+    if (!selectedFilters.year || selectedFilters.year.length === 0) return {};
+    
+    const counts: Record<string, number> = {};
+    
+    selectedFilters.year.forEach(year => {
+      const count = tracks.filter(track => {
+        if (!track.release_date) return false;
+        const trackYear = track.release_date.split('-')[0];
+        return trackYear === year;
+      }).length;
+      
+      counts[year] = count;
+    });
+    
+    return counts;
+  }, [tracks, selectedFilters.year]);
+
   if (loading) {
     return (
       <div className={styles.centerblock}>
@@ -267,6 +333,12 @@ export default function CenterBlock() {
           {selectedFilters.year.length > 0 && (
             <span className={styles.filter__selected}>
               {getFilterDisplayText('year')}
+              {selectedFilters.year.length === 1 && (
+                <span className={styles.filter__count}>
+                  {getTracksCountByYear[selectedFilters.year[0]] !== undefined && 
+                   ` (${getTracksCountByYear[selectedFilters.year[0]]} треков)`}
+                </span>
+              )}
             </span>
           )}
         </button>
@@ -325,10 +397,15 @@ export default function CenterBlock() {
       
       <div className={styles.content__playlist}>
         {filteredTracks.length > 0 ? (
-          filteredTracks.map(track => (
-            <Track key={track._id} track={track} />
-          ))
-        ) : (
+  filteredTracks
+    .filter((track) => track && track._id !== undefined)
+    .map((track, index) => (
+      <Track 
+        key={`main-${track._id}-${index}-${track.name}`}
+        track={track} 
+      />
+    ))
+) : (
           <div className={styles.noResults}>
             {searchQuery || selectedFilters.artist.length > 0 || selectedFilters.year.length > 0 || selectedFilters.genre.length > 0 ? 
               'По вашему запросу ничего не найдено' : 
