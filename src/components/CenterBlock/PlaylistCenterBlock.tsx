@@ -1,23 +1,338 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
 import { Track as TrackType } from '@/types/api';
+import FilterList from '@/components/FilterList/FilterList';
+import FilterLength from '@/components/FilterLength/FilterLength';
 
 interface PlaylistCenterBlockProps {
   title: string;
 }
 
-export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps) {
-  const { playlistTracks } = useAppSelector((state) => state.tracks);
+type FilterState = {
+  artist: string[];
+  year: string[];
+  genre: string[];
+};
+
+function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
+  if (!Array.isArray(arr)) return [];
   
-  const tracks = playlistTracks || [];
+  const uniqueValues = new Set<string>();
+  
+  arr.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    
+    const value = item[key] as unknown;
+    
+    if (Array.isArray(value)) {
+      (value as string[]).forEach((v) => {
+        if (v && typeof v === 'string') uniqueValues.add(v);
+      });
+    } else if (typeof value === 'string') {
+      uniqueValues.add(value);
+    } else if (typeof value === 'number') {
+      uniqueValues.add(value.toString());
+    }
+  });
+  
+  return Array.from(uniqueValues).sort();
+}
+
+export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps) {
+  const { currentPlaylist } = useAppSelector((state) => state.tracks);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [selectedFilters, setSelectedFilters] = useState<FilterState>({
+    artist: [],
+    year: [],
+    genre: []
+  });
+  
+  const tracks = useMemo(() => {
+    return currentPlaylist?.tracks || [];
+  }, [currentPlaylist]);
+  
+  const actualTitle = useMemo(() => {
+    return currentPlaylist?.name || title;
+  }, [currentPlaylist, title]);
+  
+
+  const uniqueArtists = useMemo(() => 
+    getUniqueValuesFromTracks(tracks, 'author'), 
+    [tracks]
+  );
+  
+  const uniqueGenres = useMemo(() => {
+    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    
+    const genresSet = new Set<string>();
+    
+    tracks.forEach(track => {
+      if (track.genre && Array.isArray(track.genre)) {
+        track.genre.forEach(genre => {
+          if (genre && typeof genre === 'string') {
+            genresSet.add(genre);
+          }
+        });
+      }
+    });
+    
+    return Array.from(genresSet).sort();
+  }, [tracks]);
+  
+  const uniqueYears = useMemo(() => {
+    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+    
+    const yearsSet = new Set<string>();
+    
+    tracks.forEach(track => {
+      if (track.release_date && typeof track.release_date === 'string') {
+        const year = track.release_date.split('-')[0];
+        if (year && year.length === 4 && !isNaN(Number(year))) {
+          yearsSet.add(year);
+        }
+      }
+    });
+
+    return Array.from(yearsSet).sort((a, b) => {
+      const yearA = parseInt(a, 10);
+      const yearB = parseInt(b, 10);
+      return yearB - yearA;
+    });
+  }, [tracks]);
+  
+  const toggleFilter = (filterName: string) => {
+    if (activeFilter === filterName) {
+      setActiveFilter(null);
+    } else {
+      setActiveFilter(filterName);
+    }
+  };
+  
+  const handleFilterSelect = (filterName: string, value: string) => {
+    setSelectedFilters(prev => {
+      const currentValues = prev[filterName as keyof FilterState];
+      const valueIndex = currentValues.indexOf(value);
+      
+      if (valueIndex === -1) {
+        return {
+          ...prev,
+          [filterName]: [...currentValues, value]
+        };
+      } else {
+        return {
+          ...prev,
+          [filterName]: currentValues.filter((_, index) => index !== valueIndex)
+        };
+      }
+    });
+  };
+  
+  const clearFilter = (filterName: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      [filterName]: []
+    }));
+
+    if (activeFilter === filterName) {
+      setActiveFilter(null);
+    }
+  };
+  
+  const getFilterItems = () => {
+    switch(activeFilter) {
+      case 'artist':
+        return uniqueArtists;
+      case 'year':
+        return uniqueYears;
+      case 'genre':
+        return uniqueGenres;
+      default:
+        return [];
+    }
+  };
+  
+  const getFilterCount = () => {
+    switch(activeFilter) {
+      case 'artist':
+        return uniqueArtists.length;
+      case 'year':
+        return uniqueYears.length;
+      case 'genre':
+        return uniqueGenres.length;
+      default:
+        return 0;
+    }
+  };
+
+  const getFilterDisplayText = (filterName: string) => {
+    const selected = selectedFilters[filterName as keyof FilterState];
+    if (selected.length === 0) {
+      return '';
+    } else if (selected.length === 1) {
+      return `: ${selected[0]}`;
+    } else {
+      return `: ${selected.length}`;
+    }
+  };
+  
+  // Фильтрация треков
+  const filteredTracks = useMemo(() => {
+    if (!Array.isArray(tracks)) return [];
+    
+    return tracks.filter(track => {
+      if (!track) return false;
+
+      // Фильтр по поиску
+      const matchesSearch = searchQuery === '' || 
+        (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (track.album && track.album.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      if (!matchesSearch) return false;
+      
+      // Фильтр по исполнителю
+      const matchesArtist = selectedFilters.artist.length === 0 || 
+        (track.author && selectedFilters.artist.includes(track.author));
+      
+      if (!matchesArtist) return false;
+      
+      // Фильтр по году
+      if (selectedFilters.year.length > 0) {
+        if (!track.release_date) return false;
+        
+        const trackYear = track.release_date.split('-')[0];
+        const matchesYear = trackYear && selectedFilters.year.includes(trackYear);
+        
+        if (!matchesYear) return false;
+      }
+      
+      // Фильтр по жанру
+      if (selectedFilters.genre.length > 0) {
+        if (!track.genre || !Array.isArray(track.genre)) return false;
+        
+        const matchesGenre = track.genre.some(genre => 
+          genre && selectedFilters.genre.includes(genre)
+        );
+        
+        if (!matchesGenre) return false;
+      }
+      
+      return true;
+    });
+  }, [tracks, searchQuery, selectedFilters]);
   
   return (
     <div className={styles.centerblock}>
-      <h2 className={styles.centerblock__h2}>{title}</h2>
+      {/* Поисковая строка */}
+      <div className={styles.centerblock__search}>
+        <svg className={styles.search__svg}>
+          <use xlinkHref="/images/icon/sprite.svg#icon-search"></use>
+        </svg>
+        <input
+          className={styles.search__text}
+          type="search"
+          placeholder="Поиск"
+          name="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
       
+      {/* Заголовок плейлиста */}
+      <h2 className={styles.centerblock__h2}>{actualTitle}</h2>
+      
+      {/* Панель фильтров */}
+      <div className={styles.centerblock__filter}>
+        <div className={styles.filter__title}>Искать по:</div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${
+              selectedFilters.artist.length > 0 ? styles.filter__buttonActive : ''
+            }`}
+            onClick={() => toggleFilter('artist')}
+          >
+            исполнителю
+            {selectedFilters.artist.length > 0 && (
+              <span className={styles.filter__selected}>
+                {getFilterDisplayText('artist')}
+              </span>
+            )}
+          </button>
+          {activeFilter === 'artist' && (
+            <>
+              <FilterList 
+                items={getFilterItems()} 
+                selectedItems={selectedFilters.artist}
+                onItemClick={(item) => handleFilterSelect('artist', item)}
+                onClear={() => clearFilter('artist')}
+              />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${
+              selectedFilters.year.length > 0 ? styles.filter__buttonActive : ''
+            }`}
+            onClick={() => toggleFilter('year')}
+          >
+            году выпуска
+            {selectedFilters.year.length > 0 && (
+              <span className={styles.filter__selected}>
+                {getFilterDisplayText('year')}
+              </span>
+            )}
+          </button>
+          {activeFilter === 'year' && (
+            <>
+              <FilterList 
+                items={getFilterItems()} 
+                selectedItems={selectedFilters.year}
+                onItemClick={(item) => handleFilterSelect('year', item)}
+                onClear={() => clearFilter('year')}
+              />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
+        
+        <div className={styles.filter__container}>
+          <button 
+            className={`${styles.filter__button} ${
+              selectedFilters.genre.length > 0 ? styles.filter__buttonActive : ''
+            }`}
+            onClick={() => toggleFilter('genre')}
+          >
+            жанру
+            {selectedFilters.genre.length > 0 && (
+              <span className={styles.filter__selected}>
+                {getFilterDisplayText('genre')}
+              </span>
+            )}
+          </button>
+          {activeFilter === 'genre' && (
+            <>
+              <FilterList 
+                items={getFilterItems()} 
+                selectedItems={selectedFilters.genre}
+                onItemClick={(item) => handleFilterSelect('genre', item)}
+                onClear={() => clearFilter('genre')}
+              />
+              <FilterLength count={getFilterCount()} />
+            </>
+          )}
+        </div>
+      </div>
+      
+      {/* Список треков */}
       <div className={styles.centerblock__content}>
         <div className={styles.content__title}>
           <div className={`${styles.playlistTitle__col} ${styles.col01}`}>ТРЕК</div>
@@ -31,21 +346,22 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
         </div>
         
         <div className={styles.content__playlist}>
-          {tracks.length > 0 ? (
-            tracks
+          {filteredTracks.length > 0 ? (
+            filteredTracks
               .filter((track: TrackType) => track && track._id !== undefined && typeof track === 'object')
-              .map((track: TrackType, index: number) => {
-                console.log(`Трек ${index}:`, track);
-                return (
-                  <Track 
-                    key={`playlist-${track._id}-${index}-${track.name}`}
-                    track={track} 
-                  />
-                );
-              })
+              .map((track: TrackType, index: number) => (
+                <Track 
+                  key={`playlist-${track._id}-${index}-${track.name}`}
+                  track={track} 
+                />
+              ))
           ) : (
             <div className={styles.emptyPlaylist}>
-              В данном плейлисте пока нет треков
+              {searchQuery || selectedFilters.artist.length > 0 || 
+               selectedFilters.year.length > 0 || selectedFilters.genre.length > 0
+                ? 'По вашему запросу ничего не найдено'
+                : 'В данном плейлисте пока нет треков'
+              }
             </div>
           )}
         </div>

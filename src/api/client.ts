@@ -153,96 +153,160 @@ export class ApiClient {
   }
 
   static async getPlaylistById(id: number): Promise<Playlist> {
-    try {
-      type PlaylistResponse = {
-        success?: boolean;
-        data?: {
-          _id?: number;
-          name?: string;
-          items?: (Track | number)[];
-          tracks?: (Track | number)[];
-        };
+  try {
+    type PlaylistResponse = {
+      success?: boolean;
+      data?: {
         _id?: number;
         name?: string;
         items?: (Track | number)[];
         tracks?: (Track | number)[];
-        detail?: string;
-        message?: string;
       };
+      _id?: number;
+      name?: string;
+      items?: (Track | number)[];
+      tracks?: (Track | number)[];
+      detail?: string;
+      message?: string;
+    };
 
-      const response = await this.request<PlaylistResponse>(`/catalog/selection/${id}/`);
+    const response = await this.request<PlaylistResponse>(`/catalog/selection/${id}/`);
 
-      const getValidTracks = (items: (Track | number)[] | undefined): Track[] => {
-        if (!Array.isArray(items) || items.length === 0) {
+    const handleEmptyPlaylist = async (playlistId: number): Promise<Track[]> => {
+      if (playlistId === 1) {
+        try {
+          const allTracks = await this.getAllTracks();
+          const popularTracks = [...allTracks]
+            .sort((a, b) => {
+              const aFavorites = a.stared_user?.length || 0;
+              const bFavorites = b.stared_user?.length || 0;
+              return bFavorites - aFavorites;
+            })
+            .slice(0, 20);
+          
+          return popularTracks;
+        } catch (err) {
+          console.error('Ошибка при загрузке популярных треков:', err);
           return [];
         }
+      }
+      return [];
+    };
 
-        const firstItem = items[0];
-        if (typeof firstItem === 'number') {
-          return [];
-        }
-
-        return items.filter((item): item is Track => {
-          if (!item || typeof item !== 'object') {
-            return false;
+    // Функция для получения треков по ID
+    const getTracksFromIds = async (trackIds: number[]): Promise<Track[]> => {
+      if (!trackIds || trackIds.length === 0) {
+        return await handleEmptyPlaylist(id);
+      }
+      
+      try {
+        const allTracks = await this.getAllTracks();
+        const tracksMap = new Map<number, Track>();
+        allTracks.forEach(track => {
+          if (track && track._id !== undefined) {
+            tracksMap.set(track._id, track);
           }
-
-          const track = item as Track;
-          return (
-            track._id !== undefined &&
-            track.name !== undefined &&
-            track.author !== undefined
-          );
         });
-      };
-
-      if (response.success !== false && response.data) {
-
-        const items = response.data.items || response.data.tracks || [];
-        const validTracks = getValidTracks(items);
-
-        return {
-          _id: response.data._id || id,
-          name: response.data.name || `Плейлист ${id}`,
-          items: validTracks,
-          tracks: validTracks
-        };
-      }
-
-      if (response._id || response.name) {
         
-        const items = response.items || response.tracks || [];
-        const validTracks = getValidTracks(items);
+        const tracks = trackIds
+          .map(id => tracksMap.get(id))
+          .filter((track): track is Track => track !== undefined);
         
-        return {
-          _id: response._id || id,
-          name: response.name || `Плейлист ${id}`,
-          items: validTracks,
-          tracks: validTracks
-        };
+        if (tracks.length === 0 && id === 1) {
+          return await handleEmptyPlaylist(id);
+        }
+        
+        return tracks;
+      } catch (err) {
+        console.error('Ошибка при получении треков по ID:', err);
+        return await handleEmptyPlaylist(id);
       }
-      
-      if (response.success === false) {
-        throw new Error(response.detail || response.message || 'Failed to load playlist');
-      }
-      
-      return {
-        _id: id,
-        name: `Плейлист ${id}`,
-        items: [],
-        tracks: []
-      };
-      
-    } catch (error) {
-      console.error('Error in getPlaylistById:', error);
-      return {
-        _id: id,
-        name: `Плейлист ${id}`,
-        items: [],
-        tracks: []
-      };
+    };
+
+    let items: (Track | number)[] = [];
+    let playlistNameFromApi = '';
+    let playlistId = id;
+
+    if (response.success !== false && response.data) {
+      items = response.data.items || response.data.tracks || [];
+      playlistNameFromApi = response.data.name || '';
+      playlistId = response.data._id || id;
+    } else if (response._id || response.name) {
+      items = response.items || response.tracks || [];
+      playlistNameFromApi = response.name || '';
+      playlistId = response._id || id;
     }
+
+    const finalPlaylistName = (() => {
+      switch(id) {
+        case 1:
+          return 'Плейлист дня';
+        case 2:
+          return '100 танцевальных хитов';
+        case 3:
+          return 'Инди-заряд';
+        default:
+          return playlistNameFromApi && playlistNameFromApi.trim() !== '' 
+            ? playlistNameFromApi 
+            : `Плейлист ${id}`;
+      }
+    })();
+
+    const firstItem = items[0];
+    let validTracks: Track[] = [];
+
+    if (items.length === 0) {
+      validTracks = await handleEmptyPlaylist(id);
+    } else if (typeof firstItem === 'number') {
+      validTracks = await getTracksFromIds(items as number[]);
+    } else if (firstItem && typeof firstItem === 'object' && '_id' in firstItem) {
+      validTracks = items.filter((item): item is Track => {
+        const track = item as Track;
+        return (
+          track._id !== undefined &&
+          track.name !== undefined &&
+          track.author !== undefined
+        );
+      });
+    }
+
+    return {
+      _id: playlistId,
+      name: finalPlaylistName,
+      items: validTracks,
+      tracks: validTracks
+    };
+    
+  } catch (error) {
+    console.error('Error in getPlaylistById:', error);
+    if (id === 1) {
+      try {
+        const allTracks = await this.getAllTracks();
+        const popularTracks = allTracks.slice(0, 15);
+        return {
+          _id: id,
+          name: 'Плейлист дня',
+          items: popularTracks,
+          tracks: popularTracks
+        };
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+    }
+
+    let fallbackName = `Плейлист ${id}`;
+    if (id === 1) fallbackName = 'Плейлист дня';
+    if (id === 2) fallbackName = '100 танцевальных хитов';
+    if (id === 3) fallbackName = 'Инди-заряд';
+    
+    return {
+      _id: id,
+      name: fallbackName,
+      items: [],
+      tracks: []
+    };
   }
+}
 
   static async getFavoriteTracks(accessToken: string): Promise<Track[]> {
     return this.request<Track[]>('/catalog/track/favorite/all/', {

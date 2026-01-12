@@ -192,14 +192,12 @@ export default function CenterBlock() {
     }
   };
   
-  // Исправленная функция фильтрации
   const filteredTracks = useMemo(() => {
     if (!Array.isArray(playlistTracks)) return [];
     
     return playlistTracks.filter(track => {
       if (!track) return false;
 
-      // Фильтр по поиску
       const matchesSearch = searchQuery === '' || 
         (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
