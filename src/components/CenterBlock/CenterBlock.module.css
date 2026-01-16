@@ -1,7 +1,6 @@
 .centerblock {
   width: auto;
   flex-grow: 3;
-  padding: 20px 40px 20px 111px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -91,10 +90,6 @@
   cursor: pointer;
 }
 
-.filter__button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
 .centerblock__content {
   flex: 1;
   display: flex;
@@ -128,22 +123,10 @@
   stroke: #696969;
 }
 
-.col01 {
-  width: 447px;
-}
-
-.col02 {
-  width: 321px;
-}
-
-.col03 {
-  width: 245px;
-}
-
-.col04 {
-  width: 60px;
-  text-align: end;
-}
+.col01 { width: 447px; }
+.col02 { width: 321px; }
+.col03 { width: 245px; }
+.col04 { width: 60px; text-align: end; }
 
 .content__playlist {
   flex: 1;
@@ -156,65 +139,71 @@
   padding-bottom: 20px;
 }
 
-.content__playlist::-webkit-scrollbar {
-  display: none;
-  width: 0;
-}
-
-.content__playlist::after {
-  content: '';
-  position: sticky;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(to bottom, 
-    transparent 0%, 
-    rgba(24, 24, 24, 0.8) 30%,
-    rgba(24, 24, 24, 0.95) 100%
-  );
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 1;
-}
-
-.content__playlist.scrolled::after {
-  opacity: 1;
-}
-
-.filter__button {
-  position: relative;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 24px;
-  border: 1px solid #ffffff;
-  border-radius: 60px;
-  padding: 6px 20px;
-  margin-right: 10px;
-  color: #ffffff;
-  background-color: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.filter__button:hover {
-  border-color: #d9b6ff;
-  color: #d9b6ff;
-}
-
 .filter__buttonActive {
   border-color: #ad61ff;
   color: #ad61ff;
   background-color: rgba(173, 97, 255, 0.1);
 }
 
-.centerblock__filter > div {
-  position: relative;
-  margin-right: 10px;
-}
 .filter__container {
   position: relative;
   margin-right: 10px;
+}
+
+.filter__selected {
+  color: #ad61ff;
+  margin-left: 5px;
+  font-weight: 600;
+}
+
+.filter__count {
+  color: #696969;
+  font-size: 14px;
+  margin-left: 5px;
+  font-weight: 400;
+}
+
+.noResults {
+  text-align: center;
+  padding: 40px;
+  color: #696969;
+  font-size: 16px;
+  width: 100%;
+}
+
+.emptyPlaylist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #696969;
+  font-size: 16px;
+  text-align: center;
+  padding: 40px;
+  background: rgba(49, 49, 49, 0.3);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.emptyPlaylist::before {
+  content: "🎵";
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.error {
+  color: #ff6b6b;
+  padding: 20px;
+  text-align: center;
 }

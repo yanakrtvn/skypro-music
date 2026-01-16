@@ -3,9 +3,11 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import styles from './Header.module.css'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -13,6 +15,11 @@ export default function Header() {
 
   const closeMenu = () => {
     setIsMenuOpen(false)
+  }
+
+  const handleLogout = () => {
+    logout()
+    closeMenu()
   }
 
   return (
@@ -25,7 +32,7 @@ export default function Header() {
               height={17}
               className={styles.logo__image}
               src="/images/logo.png"
-              alt="logo"
+              alt="Skypro Music Logo"
             />
           </Link>
         </div>
@@ -48,15 +55,29 @@ export default function Header() {
             </Link>
           </li>
           <li className={styles.menu__item}>
-            <Link href="/playlist" className={styles.menu__link} onClick={closeMenu}>
-              Мой плейлист
+            <Link href="/favorites" className={styles.menu__link} onClick={closeMenu}>
+              Мои треки
             </Link>
           </li>
-          <li className={styles.menu__item}>
-            <Link href="/signin" className={styles.menu__link} onClick={closeMenu}>
-              Войти
-            </Link>
-          </li>
+          {user ? (
+            <>
+              <li className={styles.menu__item}>
+                <button 
+                  className={styles.menu__link} 
+                  onClick={handleLogout}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  Выйти
+                </button>
+              </li>
+            </>
+          ) : (
+            <li className={styles.menu__item}>
+              <Link href="/signin" className={styles.menu__link} onClick={closeMenu}>
+                Войти
+              </Link>
+            </li>
+          )}
         </ul>
       </div>
     </div>
