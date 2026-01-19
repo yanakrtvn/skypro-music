@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '@/api/client'; 
 
 interface AuthContextType {
@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const currentRefreshToken = localStorage.getItem('refreshToken');
@@ -56,49 +57,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('favoriteTracks');
+
+    if (window) {
+      window.dispatchEvent(new Event('authStateChanged'));
+      window.dispatchEvent(new Event('favoritesUpdated'));
+    }
+
+    if (pathname?.includes('/favorites')) {
+      router.push('/');
+    }
+
+    router.push('/signin');
+  }, [router, pathname]);
+
   useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = localStorage.getItem('user');
-      const storedAccessToken = localStorage.getItem('accessToken');
-      const storedRefreshToken = localStorage.getItem('refreshToken');
+  const initAuth = async () => {
+    const storedUser = localStorage.getItem('user');
+    const storedAccessToken = localStorage.getItem('accessToken');
+    const storedRefreshToken = localStorage.getItem('refreshToken');
 
-      if (storedUser && storedAccessToken && storedRefreshToken) {
-        try {
-          const isValid = await ApiClient.verifyToken(storedAccessToken);
-          
-          if (!isValid) {
-            const newAccessToken = await refreshAccessToken();
-            
-            if (!newAccessToken) {
-              localStorage.removeItem('user');
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              setUser(null);
-              setAccessToken(null);
-              setRefreshToken(null);
-            } else {
-              setUser(JSON.parse(storedUser));
-              setAccessToken(newAccessToken);
-              setRefreshToken(storedRefreshToken);
-            }
-          } else {
-            setUser(JSON.parse(storedUser));
-            setAccessToken(storedAccessToken);
-            setRefreshToken(storedRefreshToken);
-          }
-        } catch (err) {
-          console.error('Error during auth initialization:', err);
-
-          localStorage.removeItem('user');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
+    if (storedUser && storedAccessToken && storedRefreshToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setAccessToken(storedAccessToken);
+        setRefreshToken(storedRefreshToken);
+      } catch (err) {
+        console.error('Error during auth initialization:', err);
+        logout();
       }
-      setIsLoading(false);
-    };
+    }
+    setIsLoading(false);
+  };
 
-    initAuth();
-  }, [refreshAccessToken]);
+  initAuth();
+}, [logout]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -107,16 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
 
       const userData = await ApiClient.login(email, password);
-      
       const tokens = await ApiClient.getTokens(email, password);
 
       setUser(userData);
       setAccessToken(tokens.access);
       setRefreshToken(tokens.refresh);
-      
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('accessToken', tokens.access);
       localStorage.setItem('refreshToken', tokens.refresh);
+      window.dispatchEvent(new Event('authStateChanged'));
 
       router.push('/');
     } catch (err) {
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await ApiClient.signup(email, password, username);
+      await ApiClient.signup(email, password, username);
 
       await login(email, password);
     } catch (err) {
@@ -145,15 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    router.push('/signin');
-  };
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('unauthorized', handleUnauthorized);
+    
+    return () => {
+      window.removeEventListener('unauthorized', handleUnauthorized);
+    };
+  }, [logout]);
 
   const value: AuthContextType = {
     user,

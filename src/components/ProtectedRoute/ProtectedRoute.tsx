@@ -6,17 +6,21 @@ import { useAuth } from '@/context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  redirectTo?: string;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ 
+  children, 
+  redirectTo = '/signin' 
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/signin');
+      router.push(redirectTo);
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, redirectTo]);
 
   if (isLoading) {
     return (
@@ -24,9 +28,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '100vh'
+        height: '100vh',
+        backgroundColor: '#181818'
       }}>
-        <div>Загрузка...</div>
+        <div style={{ color: '#fff' }}>Загрузка...</div>
       </div>
     );
   }

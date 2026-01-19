@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
 import { useAppSelector } from '@/store/hooks';
 import { Track as TrackType } from '@/types/api';
 import FilterList from '@/components/FilterList/FilterList';
 import FilterLength from '@/components/FilterLength/FilterLength';
+
+interface FavoritesCenterBlockProps {
+  serverFavorites?: TrackType[];
+}
 
 type FilterState = {
   artist: string[];
@@ -38,9 +42,7 @@ function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): st
   return Array.from(uniqueValues).sort();
 }
 
-export default function FavoritesCenterBlock() {
-  const [favoriteTracks, setFavoriteTracks] = useState<TrackType[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function FavoritesCenterBlock({ serverFavorites = [] }: FavoritesCenterBlockProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<FilterState>({
@@ -50,48 +52,44 @@ export default function FavoritesCenterBlock() {
   });
   const { currentPlaylist } = useAppSelector((state) => state.tracks);
 
-  const loadFavorites = () => {
+  const getFavoriteTracks = useCallback((): TrackType[] => {
+    if (serverFavorites.length > 0) {
+      return serverFavorites;
+    }
+    
+    if (currentPlaylist?.id === -1 && currentPlaylist.tracks.length > 0) {
+      return currentPlaylist.tracks;
+    }
+
     try {
       const favoritesString = localStorage.getItem('favoriteTracks');
-      const tracks = favoritesString ? JSON.parse(favoritesString) : [];
-      setFavoriteTracks(tracks);
-    } catch (err) {
-      console.error('Ошибка загрузки избранных треков:', err);
-      setFavoriteTracks([]);
-    } finally {
-      setLoading(false);
+      return favoritesString ? JSON.parse(favoritesString) : [];
+    } catch {
+      return [];
     }
-  };
+  }, [serverFavorites, currentPlaylist]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadFavorites();
-    }, 0);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  const favoriteTracks = useMemo(() => {
+    return getFavoriteTracks();
+  }, [getFavoriteTracks]);
 
   useEffect(() => {
     const handleFavoritesUpdated = () => {
-      loadFavorites();
+      setSearchQuery(prev => prev);
+    };
+
+    const handleFavoriteUpdated = (e: Event) => {
+      setSearchQuery(prev => prev);
     };
 
     window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
+    window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
     
     return () => {
       window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
+      window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
     };
   }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentPlaylist?.id === -1) {
-        setFavoriteTracks(currentPlaylist.tracks);
-      }
-    }, 0);
-    
-    return () => clearTimeout(timer);
-  }, [currentPlaylist]);
 
   const uniqueArtists = useMemo(() => 
     getUniqueValuesFromTracks(favoriteTracks, 'author'), 
@@ -137,15 +135,11 @@ export default function FavoritesCenterBlock() {
     });
   }, [favoriteTracks]);
   
-  const toggleFilter = (filterName: string) => {
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter(filterName);
-    }
-  };
+  const toggleFilter = useCallback((filterName: string) => {
+    setActiveFilter(prev => prev === filterName ? null : filterName);
+  }, []);
   
-  const handleFilterSelect = (filterName: string, value: string) => {
+  const handleFilterSelect = useCallback((filterName: string, value: string) => {
     setSelectedFilters(prev => {
       const currentValues = prev[filterName as keyof FilterState];
       const valueIndex = currentValues.indexOf(value);
@@ -162,20 +156,18 @@ export default function FavoritesCenterBlock() {
         };
       }
     });
-  };
+  }, []);
   
-  const clearFilter = (filterName: string) => {
+  const clearFilter = useCallback((filterName: string) => {
     setSelectedFilters(prev => ({
       ...prev,
       [filterName]: []
     }));
 
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    }
-  };
+    setActiveFilter(prev => prev === filterName ? null : prev);
+  }, []);
   
-  const getFilterItems = () => {
+  const getFilterItems = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists;
@@ -186,9 +178,9 @@ export default function FavoritesCenterBlock() {
       default:
         return [];
     }
-  };
+  }, [activeFilter, uniqueArtists, uniqueYears, uniqueGenres]);
   
-  const getFilterCount = () => {
+  const getFilterCount = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists.length;
@@ -199,9 +191,9 @@ export default function FavoritesCenterBlock() {
       default:
         return 0;
     }
-  };
+  }, [activeFilter, uniqueArtists.length, uniqueYears.length, uniqueGenres.length]);
 
-  const getFilterDisplayText = (filterName: string) => {
+  const getFilterDisplayText = useCallback((filterName: string) => {
     const selected = selectedFilters[filterName as keyof FilterState];
     if (selected.length === 0) {
       return '';
@@ -210,7 +202,7 @@ export default function FavoritesCenterBlock() {
     } else {
       return `: ${selected.length}`;
     }
-  };
+  }, [selectedFilters]);
   
   // Фильтрация треков
   const filteredTracks = useMemo(() => {
@@ -257,14 +249,6 @@ export default function FavoritesCenterBlock() {
       return true;
     });
   }, [favoriteTracks, searchQuery, selectedFilters]);
-
-  if (loading) {
-    return (
-      <div className={styles.centerblock}>
-        <div className={styles.loading}>Загрузка избранных...</div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.centerblock}>
@@ -393,6 +377,7 @@ export default function FavoritesCenterBlock() {
                 <Track 
                   key={`favorites-${track._id}-${index}-${track.name}`}
                   track={track} 
+                  isInFavoritesPage={true}
                 />
               ))
           ) : (
