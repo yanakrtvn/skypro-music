@@ -11,53 +11,78 @@ const BASE_URL = 'https://webdev-music-003b5b991590.herokuapp.com';
 
 export class ApiClient {
   private static async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}, 
-    skipJsonParse = false
-  ): Promise<T> {
-    const url = `${BASE_URL}${endpoint}`;
-    
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
+  endpoint: string, 
+  options: RequestInit = {}, 
+  skipJsonParse = false
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+  
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+  };
 
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    };
+  const config: RequestInit = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
+  };
 
-    try {
-      const response = await fetch(url, config);
+  try {
+    const response = await fetch(url, config);
+   
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       
-      if (!response.ok) {
-        try {
-          const error: APIError = await response.json();
-          throw new Error(error.message || error.detail || `HTTP ${response.status}`);
-        } catch {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      try {
+        const errorData = await response.json();
+       
+        if (typeof errorData === 'object' && errorData !== null) {
+          errorMessage = 
+            errorData.message || 
+            errorData.detail || 
+            errorData.error || 
+            (typeof errorData === 'string' ? errorData : JSON.stringify(errorData));
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } catch {
+        if (response.status === 400) {
+          errorMessage = 'Неверные данные. Проверьте введенную информацию';
+        } else if (response.status === 401) {
+          errorMessage = 'Требуется авторизация';
+        } else if (response.status === 403) {
+          errorMessage = 'Доступ запрещен';
+        } else if (response.status === 404) {
+          errorMessage = 'Ресурс не найден';
+        } else if (response.status === 500) {
+          errorMessage = 'Ошибка сервера';
         }
       }
 
-      if (skipJsonParse) {
-        return undefined as T;
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-      }
-      
-      return undefined as T;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Network error');
+      throw new Error(errorMessage);
     }
+
+    if (skipJsonParse) {
+      return undefined as T;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const json = await response.json();
+      return json;
+    }
+
+    return undefined as T;
+  } catch (error) {
+    console.error(`[API] Ошибка запроса ${url}:`, error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Network error');
   }
+}
 
   private static async requestWithAuth<T>(
     endpoint: string,
@@ -87,14 +112,65 @@ export class ApiClient {
 
   // Регистрация
   static async signup(email: string, password: string, username: string): Promise<AuthResponse> {
-    return this.request<AuthResponse>('/user/signup/', {
+  try {
+    const response = await this.request<AuthResponse>('/user/signup/', {
       method: 'POST',
       body: JSON.stringify({ email, password, username }),
     });
+    
+    return response;
+  } catch (error) {
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (errorMessage.includes('только цифры и латинские буквы') || 
+          errorMessage.includes('user validation failed') ||
+          errorMessage.includes('username')) {
+        if (errorMessage.includes('только цифры и латинские буквы')) {
+          throw new Error('Имя пользователя может содержать только цифры, латинские буквы и символы @ . + - _');
+        }
+      }
+
+      if (errorMessage.includes('email already exists') || 
+          errorMessage.includes('email уже существует') ||
+          errorMessage.includes('уже зарегистрирован')) {
+        throw new Error('Пользователь с таким email уже зарегистрирован');
+      }
+      
+      if (errorMessage.includes('username already exists') || 
+          errorMessage.includes('имя пользователя уже используется')) {
+        throw new Error('Это имя пользователя уже занято');
+      }
+      
+      if (errorMessage.includes('password') || errorMessage.includes('парол')) {
+        if (errorMessage.includes('short') || errorMessage.includes('коротк')) {
+          throw new Error('Пароль слишком короткий');
+        }
+        if (errorMessage.includes('weak') || errorMessage.includes('слаб')) {
+          throw new Error('Пароль слишком слабый');
+        }
+      }
+      
+      if (errorMessage.includes('email') || errorMessage.includes('почт')) {
+        if (errorMessage.includes('invalid') || errorMessage.includes('неверн')) {
+          throw new Error('Неверный формат email');
+        }
+      }
+
+      if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
+        throw new Error('Проверьте введенные данные. Возможно, некоторые поля заполнены неверно');
+      }
+      
+      throw error;
+    }
+    
+    throw new Error('Ошибка регистрации');
   }
+}
 
   // Вход
   static async login(email: string, password: string): Promise<AuthResponse> {
+  try {
     const response = await this.request<{ 
       success?: boolean; 
       result?: AuthResponse; 
@@ -102,6 +178,7 @@ export class ApiClient {
       username?: string; 
       _id?: number;
       message?: string;
+      detail?: string;
     }>('/user/login/', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -117,8 +194,50 @@ export class ApiClient {
       return response.result;
     }
     
-    throw new Error(response.message || 'Неверный формат ответа');
+    throw new Error('Неверный формат ответа от сервера');
+  } catch (error) {
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (errorMessage.includes('только цифры и латинские буквы') || 
+          errorMessage.includes('user validation failed') ||
+          errorMessage.includes('username')) {
+        if (errorMessage.includes('только цифры и латинские буквы')) {
+          throw new Error('Имя пользователя может содержать только цифры, латинские буквы и символы @ . + - _');
+        }
+      }
+
+      if (errorMessage.includes('неверные данные') || 
+          errorMessage.includes('invalid') || 
+          errorMessage.includes('400') ||
+          errorMessage.includes('bad request') ||
+          errorMessage.includes('неверный email или пароль')) {
+        throw new Error('Неверный email или пароль');
+      }
+      
+      if (errorMessage.includes('401') || 
+          errorMessage.includes('unauthorized') || 
+          errorMessage.includes('не авторизован')) {
+        throw new Error('Неверный email или пароль');
+      }
+      
+      if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        throw new Error('Проблемы с подключением к серверу');
+      }
+
+      if (errorMessage.length < 100 && 
+          !errorMessage.includes('http') && 
+          !errorMessage.includes('status')) {
+        const formattedMessage = errorMessage.charAt(0).toUpperCase() + errorMessage.slice(1);
+        throw new Error(formattedMessage);
+      }
+
+      throw new Error('Ошибка входа. Проверьте введенные данные');
+    }
+    
+    throw new Error('Неизвестная ошибка при входе');
   }
+}
 
   static async getTokens(email: string, password: string): Promise<TokenResponse> {
     return this.request<TokenResponse>('/user/token/', {
@@ -147,37 +266,49 @@ export class ApiClient {
   }
 
   static async getAllTracks(): Promise<Track[]> {
-    const response = await this.request<{ 
+  
+  try {   
+    const response = await this.requestWithAuth<{ 
       success: boolean; 
       data: Track[];
       message?: string;
-    }>('/catalog/track/all/');
+    }>('/catalog/track/all/', {
+      method: 'GET',
+    });
+
     
     if (response.success && response.data) {
       return response.data;
     }
     
+    console.error('Ошибка в формате ответа (с авторизацией):', response);
     throw new Error(response.message || 'Failed to load tracks');
-  }
+    
+  } catch (authError) {
+    console.log('Не удалось загрузить с авторизацией, пробуем без...', authError);
 
-  static async getPlaylists(): Promise<Playlist[]> {
     try {
       const response = await this.request<{ 
         success: boolean; 
-        data: Playlist[];
+        data: Track[];
         message?: string;
-      }>('/catalog/selection/all');
+      }>('/catalog/track/all/', {
+        method: 'GET',
+      });
       
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to load playlists');
+      if (response.success && response.data) {
+        return response.data;
       }
       
-      return response.data || [];
+      console.error('Ошибка в формате ответа (без авторизации):', response);
+      throw new Error(response.message || 'Failed to load tracks');
+      
     } catch (error) {
-      console.error('Error in getPlaylists:', error);
+      console.error('Ошибка при загрузке треков без авторизации:', error);
       throw error;
     }
   }
+}
 
   static async getPlaylistById(id: number): Promise<Playlist> {
     try {

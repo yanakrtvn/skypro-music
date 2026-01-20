@@ -29,50 +29,32 @@ export default function FavoritesPage() {
   }, [user, router]);
 
   const loadServerFavorites = useCallback(async () => {
-    if (!user) return;
+  if (!user) return;
+  
+  try {
+    setLoading(true);
+    setError(null);
     
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const favorites = await ApiClient.getServerFavoriteTracks();
-      setServerFavorites(favorites);
+    const favorites = await ApiClient.getServerFavoriteTracks();
+    setServerFavorites(favorites);
 
-      const favoritesPlaylist = {
-        id: -1,
-        name: 'Мои треки',
-        tracks: favorites
-      };
-      
-      dispatch(setSpecificPlaylist(favoritesPlaylist));
+    const favoritesPlaylist = {
+      id: -1,
+      name: 'Мои треки',
+      tracks: favorites
+    };
+    
+    dispatch(setSpecificPlaylist(favoritesPlaylist));
 
-      localStorage.setItem('favoriteTracks', JSON.stringify(favorites));
-
-      window.dispatchEvent(new Event('favoritesUpdated'));
-      
-    } catch (err) {
-      console.error('Ошибка загрузки избранных треков:', err);
-      setError('Не удалось загрузить избранные треки');
-
-      try {
-        const favoritesString = localStorage.getItem('favoriteTracks');
-        const localFavorites = favoritesString ? JSON.parse(favoritesString) : [];
-        
-        const favoritesPlaylist = {
-          id: -1,
-          name: 'Мои треки',
-          tracks: localFavorites
-        };
-        
-        dispatch(setSpecificPlaylist(favoritesPlaylist));
-        setServerFavorites(localFavorites);
-      } catch (localError) {
-        console.error('Ошибка загрузки локальных избранных:', localError);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user, dispatch]);
+    window.dispatchEvent(new Event('favoritesUpdated'));
+    
+  } catch (err) {
+    console.error('Ошибка загрузки избранных треков:', err);
+    setError('Не удалось загрузить избранные треки');
+  } finally {
+    setLoading(false);
+  }
+}, [user, dispatch]);
 
   useEffect(() => {
     if (user) {

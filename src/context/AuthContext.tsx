@@ -102,31 +102,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }, [logout]);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
+  setIsLoading(true);
+  setError(null);
+  
+  try {
+    const userData = await ApiClient.login(email, password);
+    const tokens = await ApiClient.getTokens(email, password);
 
-      const userData = await ApiClient.login(email, password);
-      const tokens = await ApiClient.getTokens(email, password);
+    setUser(userData);
+    setAccessToken(tokens.access);
+    setRefreshToken(tokens.refresh);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('accessToken', tokens.access);
+    localStorage.setItem('refreshToken', tokens.refresh);
+    window.dispatchEvent(new Event('authStateChanged'));
 
-      setUser(userData);
-      setAccessToken(tokens.access);
-      setRefreshToken(tokens.refresh);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('accessToken', tokens.access);
-      localStorage.setItem('refreshToken', tokens.refresh);
-      window.dispatchEvent(new Event('authStateChanged'));
-
-      router.push('/');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Ошибка входа';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    router.push('/');
+  } catch (err) {
+    throw err;
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const signup = async (email: string, password: string, username: string) => {
     setIsLoading(true);

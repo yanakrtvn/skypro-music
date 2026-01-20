@@ -94,13 +94,6 @@ function TrackComponent({ track, isInFavoritesPage = false }: TrackProps) {
     const newFavoriteState = await toggleFavorite(track, isFavorite);
     setIsFavorite(newFavoriteState);
 
-    const heartElement = e.currentTarget.querySelector('svg');
-    if (heartElement) {
-      heartElement.style.transform = 'scale(1.3)';
-      setTimeout(() => {
-        heartElement.style.transform = 'scale(1)';
-      }, 200);
-    }
   } catch (error) {
     console.error('Ошибка при переключении лайка:', error);
   }
