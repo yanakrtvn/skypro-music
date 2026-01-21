@@ -21,11 +21,22 @@ interface TrackProps {
 function TrackComponent({ track, isInFavoritesPage = false }: TrackProps) {
   const { currentTrack, isPlaying, currentPlaylist } = useAppSelector((state) => state.tracks);
   const dispatch = useAppDispatch();
-  const { toggleFavorite, checkIfFavorite, updateLocalFavorites, loading: favoriteLoading } = useFavorite();
+  const { toggleFavorite, checkIfFavorite, loading: favoriteLoading } = useFavorite();
   
-  const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const [localLikeCount, setLocalLikeCount] = useState<number>(track.stared_user?.length || 0);
+  const [dynamicLikeCount, setDynamicLikeCount] = useState<number>(0);
+
+  const isFavorite = useMemo(() => 
+    checkIfFavorite(track._id), 
+    [track._id, checkIfFavorite]
+  );
+
+  const baseLikeCount = useMemo(() => 
+    track.stared_user?.length || 0, 
+    [track.stared_user]
+  );
+
+  const localLikeCount = baseLikeCount + dynamicLikeCount;
 
   const isCurrentTrack = useMemo(() => 
     currentTrack?._id === track._id, 
@@ -33,71 +44,44 @@ function TrackComponent({ track, isInFavoritesPage = false }: TrackProps) {
   );
 
   useEffect(() => {
-  const checkFavoriteStatus = () => {
-    try {
-      const isFav = checkIfFavorite(track._id);
-      setIsFavorite(isFav);
-    } catch (error) {
-      console.error('Ошибка при проверке избранного:', error);
-      setIsFavorite(false);
-    }
-  };
-  
-  checkFavoriteStatus();
-  
-  const handleFavoriteUpdated = (e: Event) => {
-    const customEvent = e as CustomEvent;
-    if (customEvent.detail?.trackId === track._id) {
-      setIsFavorite(customEvent.detail.isFavorite);
-      try {
-        updateLocalFavorites(track, customEvent.detail.isFavorite);
-      } catch (error) {
-        console.error('Ошибка при обновлении локальных избранных:', error);
+    const handleFavoriteUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.trackId === track._id) {
+        if (customEvent.detail.isFavorite) {
+          setDynamicLikeCount(prev => prev + 1);
+        } else {
+          setDynamicLikeCount(prev => Math.max(-baseLikeCount, prev - 1));
+        }
       }
-
-      if (customEvent.detail.isFavorite) {
-        setLocalLikeCount(prev => prev + 1);
-      } else {
-        setLocalLikeCount(prev => Math.max(0, prev - 1));
+    };
+    
+    const handleTrackLikesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.trackId === track._id) {
+        setDynamicLikeCount(prev => 
+          customEvent.detail.isFavorite ? prev + 1 : Math.max(-baseLikeCount, prev - 1)
+        );
       }
-    }
-  };
-  
-  const handleTrackLikesUpdated = (e: Event) => {
-    const customEvent = e as CustomEvent;
-    if (customEvent.detail?.trackId === track._id) {
-      setLocalLikeCount(prev => 
-        customEvent.detail.isFavorite ? prev + 1 : Math.max(0, prev - 1)
-      );
-    }
-  };
-  
-  const handleFavoritesUpdated = () => {
-    checkFavoriteStatus();
-  };
-  
-  window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
-  window.addEventListener('trackLikesUpdated', handleTrackLikesUpdated);
-  window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
-  
-  return () => {
-    window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
-    window.removeEventListener('trackLikesUpdated', handleTrackLikesUpdated);
-    window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
-  };
-}, [track, checkIfFavorite, updateLocalFavorites]);
+    };
+    
+    window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
+    window.addEventListener('trackLikesUpdated', handleTrackLikesUpdated);
+    
+    return () => {
+      window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
+      window.removeEventListener('trackLikesUpdated', handleTrackLikesUpdated);
+    };
+  }, [track._id, baseLikeCount]);
 
   const handleToggleFavorite = useCallback(async (e: React.MouseEvent) => {
-  e.stopPropagation();
-  
-  try {
-    const newFavoriteState = await toggleFavorite(track, isFavorite);
-    setIsFavorite(newFavoriteState);
-
-  } catch (error) {
-    console.error('Ошибка при переключении лайка:', error);
-  }
-}, [track, isFavorite, toggleFavorite]);
+    e.stopPropagation();
+    
+    try {
+      await toggleFavorite(track, isFavorite);
+    } catch (error) {
+      console.error('Ошибка при переключении лайка:', error);
+    }
+  }, [track, isFavorite, toggleFavorite]);
 
   const handleTrackClick = useCallback(() => {
     if (!currentPlaylist) {

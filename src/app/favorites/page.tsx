@@ -7,8 +7,8 @@ import FavoritesCenterBlock from '@/components/CenterBlock/FavoritesCenterBlock'
 import Sidebar from '@/components/Sidebar/Sidebar';
 import Bar from '@/components/Bar/Bar';
 import styles from '../page.module.css';
-import { useAppDispatch } from '@/store/hooks';
-import { setSpecificPlaylist } from '@/store/features/trackSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSpecificPlaylist, setFavoriteTracks, setFavoritesLoading } from '@/store/features/trackSlice';
 import { ApiClient } from '@/api/client';
 import { Track } from '@/types/api';
 import { useAuth } from '@/context/AuthContext';
@@ -17,50 +17,60 @@ import ProtectedRoute from '@/components/ProtectedRoute/ProtectedRoute';
 export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [serverFavorites, setServerFavorites] = useState<Track[]>([]);
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/signin');
-    }
-  }, [user, router]);
+  const { favoriteTracks, isFavoritesLoading } = useAppSelector((state) => state.tracks);
 
   const loadServerFavorites = useCallback(async () => {
-  if (!user) return;
-  
-  try {
-    setLoading(true);
-    setError(null);
+    if (!user) return;
     
-    const favorites = await ApiClient.getServerFavoriteTracks();
-    setServerFavorites(favorites);
+    try {
+      setLoading(true);
+      setError(null);
+      dispatch(setFavoritesLoading(true));
 
-    const favoritesPlaylist = {
-      id: -1,
-      name: 'Мои треки',
-      tracks: favorites
-    };
-    
-    dispatch(setSpecificPlaylist(favoritesPlaylist));
+      const favorites = await ApiClient.getServerFavoriteTracks();
 
-    window.dispatchEvent(new Event('favoritesUpdated'));
-    
-  } catch (err) {
-    console.error('Ошибка загрузки избранных треков:', err);
-    setError('Не удалось загрузить избранные треки');
-  } finally {
-    setLoading(false);
-  }
-}, [user, dispatch]);
+      dispatch(setFavoriteTracks(favorites));
+
+      const favoritesPlaylist = {
+        id: -1,
+        name: 'Мои треки',
+        tracks: favorites
+      };
+      
+      dispatch(setSpecificPlaylist(favoritesPlaylist));
+
+      window.dispatchEvent(new Event('favoritesUpdated'));
+      
+    } catch (err) {
+      console.error('Ошибка загрузки избранных треков:', err);
+      setError('Не удалось загрузить избранные треки');
+
+      dispatch(setFavoriteTracks([]));
+    } finally {
+      setLoading(false);
+      dispatch(setFavoritesLoading(false));
+    }
+  }, [user, dispatch]);
 
   useEffect(() => {
     if (user) {
-      loadServerFavorites();
+      if (favoriteTracks.length > 0) {
+        const favoritesPlaylist = {
+          id: -1,
+          name: 'Мои треки',
+          tracks: favoriteTracks
+        };
+        dispatch(setSpecificPlaylist(favoritesPlaylist));
+        setLoading(false);
+      } else {
+        loadServerFavorites();
+      }
     }
-  }, [user, loadServerFavorites]);
+  }, [user, favoriteTracks, dispatch, loadServerFavorites]);
 
   useEffect(() => {
     const handleFavoriteUpdated = () => {
@@ -82,7 +92,7 @@ export default function FavoritesPage() {
     return null;
   }
 
-  if (loading) {
+  if (loading || isFavoritesLoading) {
     return (
       <div className={styles.wrapper}>
         <div className={styles.container}>
@@ -132,13 +142,13 @@ export default function FavoritesPage() {
     );
   }
 
- return (
+  return (
     <ProtectedRoute>
       <div className={styles.wrapper}>
         <div className={styles.container}>
           <main className={styles.main}>
             <Header />
-            <FavoritesCenterBlock serverFavorites={serverFavorites} />
+            <FavoritesCenterBlock serverFavorites={favoriteTracks} />
             <Sidebar />
           </main>
           <Bar />

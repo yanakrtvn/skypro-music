@@ -1,8 +1,11 @@
+// context/AuthContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '@/api/client'; 
+import { useAppDispatch } from '@/store/hooks';
+import { clearFavorites, setFavoriteTracks } from '@/store/features/trackSlice';
 
 interface AuthContextType {
   user: { email: string; username: string; _id: number } | null;
@@ -34,6 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useAppDispatch();
+
+  const loadUserFavorites = useCallback(async (userAccessToken: string) => {
+    if (!userAccessToken) return;
+    
+    try {
+      const favorites = await ApiClient.getFavoriteTracks();
+      dispatch(setFavoriteTracks(favorites));
+    } catch (err) {
+      console.error('Ошибка загрузки избранных треков при входе:', err);
+      dispatch(setFavoriteTracks([]));
+    }
+  }, [dispatch]);
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const currentRefreshToken = localStorage.getItem('refreshToken');
@@ -48,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       localStorage.setItem('accessToken', newAccessToken);
       setAccessToken(newAccessToken);
+
+      if (user) {
+        await loadUserFavorites(newAccessToken);
+      }
       
       return newAccessToken;
     } catch (err) {
@@ -55,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout();
       return null;
     }
-  }, []);
+  }, [user, loadUserFavorites]);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -67,6 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('favoriteTracks');
 
+    // Очищаем избранные в Redux при выходе
+    dispatch(clearFavorites());
+
     if (window) {
       window.dispatchEvent(new Event('authStateChanged'));
       window.dispatchEvent(new Event('favoritesUpdated'));
@@ -77,53 +100,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     router.push('/signin');
-  }, [router, pathname]);
+  }, [router, pathname, dispatch]);
 
   useEffect(() => {
-  const initAuth = async () => {
-    const storedUser = localStorage.getItem('user');
-    const storedAccessToken = localStorage.getItem('accessToken');
-    const storedRefreshToken = localStorage.getItem('refreshToken');
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const storedAccessToken = localStorage.getItem('accessToken');
+      const storedRefreshToken = localStorage.getItem('refreshToken');
 
-    if (storedUser && storedAccessToken && storedRefreshToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setAccessToken(storedAccessToken);
-        setRefreshToken(storedRefreshToken);
-      } catch (err) {
-        console.error('Error during auth initialization:', err);
-        logout();
+      if (storedUser && storedAccessToken && storedRefreshToken) {
+        try {
+          setUser(JSON.parse(storedUser));
+          setAccessToken(storedAccessToken);
+          setRefreshToken(storedRefreshToken);
+          
+          await loadUserFavorites(storedAccessToken);
+        } catch (err) {
+          console.error('Error during auth initialization:', err);
+          logout();
+        }
       }
-    }
-    setIsLoading(false);
-  };
+      setIsLoading(false);
+    };
 
-  initAuth();
-}, [logout]);
+    initAuth();
+  }, [logout, loadUserFavorites]);
 
   const login = async (email: string, password: string) => {
-  setIsLoading(true);
-  setError(null);
-  
-  try {
-    const userData = await ApiClient.login(email, password);
-    const tokens = await ApiClient.getTokens(email, password);
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const userData = await ApiClient.login(email, password);
+      const tokens = await ApiClient.getTokens(email, password);
 
-    setUser(userData);
-    setAccessToken(tokens.access);
-    setRefreshToken(tokens.refresh);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('accessToken', tokens.access);
-    localStorage.setItem('refreshToken', tokens.refresh);
-    window.dispatchEvent(new Event('authStateChanged'));
+      setUser(userData);
+      setAccessToken(tokens.access);
+      setRefreshToken(tokens.refresh);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('accessToken', tokens.access);
+      localStorage.setItem('refreshToken', tokens.refresh);
+      
+      await loadUserFavorites(tokens.access);
+      
+      window.dispatchEvent(new Event('authStateChanged'));
 
-    router.push('/');
-  } catch (err) {
-    throw err;
-  } finally {
-    setIsLoading(false);
-  }
-};
+      router.push('/');
+    } catch (err) {
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const signup = async (email: string, password: string, username: string) => {
     setIsLoading(true);

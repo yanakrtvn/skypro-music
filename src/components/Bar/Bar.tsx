@@ -15,7 +15,6 @@ import {
 } from '@/store/features/trackSlice';
 import { useFavorite } from '@/hooks/useFavorites';
 import styles from './Bar.module.css';
-import { Track as TrackType } from '@/types/api';
 
 function formatTime(seconds: number): string {
   if (isNaN(seconds)) return '0:00';
@@ -37,60 +36,37 @@ export default function Bar() {
   const dispatch = useAppDispatch();
   
   const [isDragging, setIsDragging] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
   
   const { toggleFavorite, checkIfFavorite, loading: favoriteLoading } = useFavorite();
 
-  useEffect(() => {
-    const updateFavoriteStatus = () => {
-      if (currentTrack) {
-        const isTrackFavorite = checkIfFavorite(currentTrack._id);
-        setIsFavorite(isTrackFavorite);
-        setLikeCount(currentTrack.stared_user?.length || 0);
-      } else {
-        setIsFavorite(false);
-        setLikeCount(0);
-      }
-    };
+  const isFavorite = useMemo(() => 
+    currentTrack ? checkIfFavorite(currentTrack._id) : false, 
+    [currentTrack, checkIfFavorite]
+  );
 
-    updateFavoriteStatus();
-    
+  const likeCount = useMemo(() => 
+    currentTrack?.stared_user?.length || 0, 
+    [currentTrack]
+  );
+
+  useEffect(() => {
     const handleFavoriteUpdated = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (currentTrack && customEvent.detail?.trackId === currentTrack._id) {
-        setIsFavorite(customEvent.detail.isFavorite);
 
         setIsAnimating(true);
         setTimeout(() => setIsAnimating(false), 300);
-
-        if (customEvent.detail.isFavorite) {
-          setLikeCount(prev => prev + 1);
-        } else {
-          setLikeCount(prev => Math.max(0, prev - 1));
-        }
-      }
-    };
-
-    const handleTrackLikesUpdated = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (currentTrack && customEvent.detail?.trackId === currentTrack._id) {
-        setLikeCount(prev => 
-          customEvent.detail.isFavorite ? prev + 1 : Math.max(0, prev - 1)
-        );
       }
     };
 
     window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
-    window.addEventListener('trackLikesUpdated', handleTrackLikesUpdated);
     
     return () => {
       window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
-      window.removeEventListener('trackLikesUpdated', handleTrackLikesUpdated);
     };
-  }, [currentTrack, checkIfFavorite]);
+  }, [currentTrack]);
 
   const handleToggleFavorite = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();

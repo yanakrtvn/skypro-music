@@ -3,7 +3,8 @@ import {
   AuthResponse, 
   TokenResponse, 
   Track, 
-  Playlist 
+  Playlist,
+  FavoriteTracksResponse
 } from '@/types/api';
 import { withReAuth } from './withReAuth';
 
@@ -466,10 +467,33 @@ export class ApiClient {
   }
 
   static async getFavoriteTracks(): Promise<Track[]> {
-    return this.requestWithAuth<Track[]>('/catalog/track/favorite/all/', {
+  try {
+    const response = await this.requestWithAuth<FavoriteTracksResponse>('/catalog/track/favorite/all/', {
       method: 'GET',
     });
+
+    if (Array.isArray(response)) {
+      return response;
+    } else if (response && typeof response === 'object') {
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (Array.isArray(response.result)) {
+        return response.result;
+      } else if (Array.isArray(response.tracks)) {
+        return response.tracks;
+      } else if (Array.isArray(response.items)) {
+        return response.items;
+      }
+    }
+    
+    console.warn('getFavoriteTracks: неверный формат ответа, возвращаем пустой массив', response);
+    return [];
+    
+  } catch (error) {
+    console.error('Ошибка загрузки избранных треков:', error);
+    throw error;
   }
+}
 
   static async addToFavorites(trackId: number): Promise<void> {
     await this.requestWithAuth(`/catalog/track/${trackId}/favorite/`, {

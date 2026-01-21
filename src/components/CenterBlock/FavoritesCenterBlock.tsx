@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
 import { useAppSelector } from '@/store/hooks';
@@ -50,58 +50,25 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
     year: [],
     genre: []
   });
-  const { currentPlaylist } = useAppSelector((state) => state.tracks);
+  
+  const { favoriteTracks } = useAppSelector((state) => state.tracks);
 
-  const getFavoriteTracks = useCallback((): TrackType[] => {
-    if (serverFavorites.length > 0) {
-      return serverFavorites;
-    }
-    
-    if (currentPlaylist?.id === -1 && currentPlaylist.tracks.length > 0) {
-      return currentPlaylist.tracks;
-    }
-
-    try {
-      const favoritesString = localStorage.getItem('favoriteTracks');
-      return favoritesString ? JSON.parse(favoritesString) : [];
-    } catch {
-      return [];
-    }
-  }, [serverFavorites, currentPlaylist]);
-
-  const favoriteTracks = useMemo(() => {
-    return getFavoriteTracks();
-  }, [getFavoriteTracks]);
-
-  useEffect(() => {
-    const handleFavoritesUpdated = () => {
-      setSearchQuery(prev => prev);
-    };
-
-    const handleFavoriteUpdated = (e: Event) => {
-      setSearchQuery(prev => prev);
-    };
-
-    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
-    window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
-    
-    return () => {
-      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
-      window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
-    };
-  }, []);
+  const displayTracks = useMemo(() => 
+    serverFavorites.length > 0 ? serverFavorites : favoriteTracks,
+    [serverFavorites, favoriteTracks]
+  );
 
   const uniqueArtists = useMemo(() => 
-    getUniqueValuesFromTracks(favoriteTracks, 'author'), 
-    [favoriteTracks]
+    getUniqueValuesFromTracks(displayTracks, 'author'), 
+    [displayTracks]
   );
   
   const uniqueGenres = useMemo(() => {
-    if (!Array.isArray(favoriteTracks) || favoriteTracks.length === 0) return [];
+    if (!Array.isArray(displayTracks) || displayTracks.length === 0) return [];
     
     const genresSet = new Set<string>();
     
-    favoriteTracks.forEach(track => {
+    displayTracks.forEach(track => {
       if (track.genre && Array.isArray(track.genre)) {
         track.genre.forEach(genre => {
           if (genre && typeof genre === 'string') {
@@ -112,14 +79,14 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
     });
     
     return Array.from(genresSet).sort();
-  }, [favoriteTracks]);
+  }, [displayTracks]);
   
   const uniqueYears = useMemo(() => {
-    if (!Array.isArray(favoriteTracks) || favoriteTracks.length === 0) return [];
+    if (!Array.isArray(displayTracks) || displayTracks.length === 0) return [];
     
     const yearsSet = new Set<string>();
     
-    favoriteTracks.forEach(track => {
+    displayTracks.forEach(track => {
       if (track.release_date && typeof track.release_date === 'string') {
         const year = track.release_date.split('-')[0];
         if (year && year.length === 4 && !isNaN(Number(year))) {
@@ -133,7 +100,7 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
       const yearB = parseInt(b, 10);
       return yearB - yearA;
     });
-  }, [favoriteTracks]);
+  }, [displayTracks]);
   
   const toggleFilter = useCallback((filterName: string) => {
     setActiveFilter(prev => prev === filterName ? null : filterName);
@@ -204,14 +171,12 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
     }
   }, [selectedFilters]);
   
-  // Фильтрация треков
   const filteredTracks = useMemo(() => {
-    if (!Array.isArray(favoriteTracks)) return [];
+    if (!Array.isArray(displayTracks)) return [];
     
-    return favoriteTracks.filter(track => {
+    return displayTracks.filter(track => {
       if (!track) return false;
 
-      // Фильтр по поиску
       const matchesSearch = searchQuery === '' || 
         (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -219,13 +184,11 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
       
       if (!matchesSearch) return false;
       
-      // Фильтр по исполнителю
       const matchesArtist = selectedFilters.artist.length === 0 || 
         (track.author && selectedFilters.artist.includes(track.author));
       
       if (!matchesArtist) return false;
       
-      // Фильтр по году
       if (selectedFilters.year.length > 0) {
         if (!track.release_date) return false;
         
@@ -235,7 +198,6 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
         if (!matchesYear) return false;
       }
       
-      // Фильтр по жанру
       if (selectedFilters.genre.length > 0) {
         if (!track.genre || !Array.isArray(track.genre)) return false;
         
@@ -248,11 +210,14 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
       
       return true;
     });
-  }, [favoriteTracks, searchQuery, selectedFilters]);
+  }, [displayTracks, searchQuery, selectedFilters]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
 
   return (
     <div className={styles.centerblock}>
-      {/* Поисковая строка */}
       <div className={styles.centerblock__search}>
         <svg className={styles.search__svg}>
           <use xlinkHref="/images/icon/sprite.svg#icon-search"></use>
@@ -263,14 +228,12 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
           placeholder="Поиск"
           name="search"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={handleSearchChange}
         />
       </div>
       
-      {/* Заголовок */}
       <h2 className={styles.centerblock__h2}>Мои треки</h2>
       
-      {/* Панель фильтров */}
       <div className={styles.centerblock__filter}>
         <div className={styles.filter__title}>Искать по:</div>
         
@@ -356,7 +319,6 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
         </div>
       </div>
       
-      {/* Список треков */}
       <div className={styles.centerblock__content}>
         <div className={styles.content__title}>
           <div className={`${styles.playlistTitle__col} ${styles.col01}`}>ТРЕК</div>

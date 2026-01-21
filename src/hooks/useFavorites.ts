@@ -3,11 +3,42 @@ import { ApiClient } from '@/api/client';
 import { Track } from '@/types/api';
 import { useNotification } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { 
+  setFavoriteTracks, 
+  addToFavorites as addToFavoritesRedux, 
+  removeFromFavorites as removeFromFavoritesRedux,
+  setFavoritesLoading 
+} from '@/store/features/trackSlice';
 
 export const useFavorite = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const { showError, showSuccess } = useNotification();
   const { user } = useAuth();
+  const dispatch = useAppDispatch();
+  
+  const { favoriteTrackIds } = useAppSelector((state) => state.tracks);
+
+  const loadFavoritesFromServer = useCallback(async () => {
+    if (!user) {
+      dispatch(setFavoriteTracks([]));
+      return;
+    }
+
+    try {
+      dispatch(setFavoritesLoading(true));
+      const favorites = await ApiClient.getFavoriteTracks();
+      dispatch(setFavoriteTracks(favorites));
+    } catch (err) {
+      console.error('Ошибка загрузки избранных треков:', err);
+      dispatch(setFavoriteTracks([]));
+      showError('Не удалось загрузить избранные треки');
+    }
+  }, [user, dispatch, showError]);
+
+  const checkIfFavorite = useCallback((trackId: number): boolean => {
+    return favoriteTrackIds.includes(trackId);
+  }, [favoriteTrackIds]);
 
   const toggleFavorite = useCallback(async (track: Track, isCurrentlyFavorite: boolean): Promise<boolean> => {
     if (!user) {
@@ -20,9 +51,11 @@ export const useFavorite = () => {
     try {
       if (isCurrentlyFavorite) {
         await ApiClient.removeFromFavorites(track._id);
+        dispatch(removeFromFavoritesRedux(track._id));
         showSuccess(`Трек "${track.name}" удален из избранного`);
       } else {
         await ApiClient.addToFavorites(track._id);
+        dispatch(addToFavoritesRedux(track));
         showSuccess(`Трек "${track.name}" добавлен в избранное`);
       }
 
@@ -34,6 +67,7 @@ export const useFavorite = () => {
         }
       });
       window.dispatchEvent(event);
+
       if (window.location.pathname.includes('/favorites')) {
         const favoritesEvent = new CustomEvent('favoritesUpdated');
         window.dispatchEvent(favoritesEvent);
@@ -48,90 +82,12 @@ export const useFavorite = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, showError, showSuccess]);
-
-  const checkIfFavorite = useCallback((trackId: number): boolean => {
-  try {
-    const favoritesString = localStorage.getItem('favoriteTracks');
-    if (!favoritesString) return false;
-    
-    const favoriteTracks = JSON.parse(favoritesString);
-    
-    if (!Array.isArray(favoriteTracks)) {
-      console.error('Некорректные данные в localStorage. Очищаем...');
-      localStorage.removeItem('favoriteTracks');
-      return false;
-    }
-    
-    return favoriteTracks.some((track: Track) => track && track._id === trackId);
-  } catch (err) {
-    console.error('Ошибка при проверке избранного:', err);
-    localStorage.removeItem('favoriteTracks');
-    return false;
-  }
-}, []);
-
-const updateLocalFavorites = useCallback((track: Track, isFavorite: boolean): void => {
-  try {
-    const favoritesString = localStorage.getItem('favoriteTracks');
-    let favoriteTracks: Track[] = [];
-    
-    if (favoritesString) {
-      try {
-        const parsed = JSON.parse(favoritesString);
-        if (Array.isArray(parsed)) {
-          favoriteTracks = parsed;
-        }
-      } catch {
-        favoriteTracks = [];
-      }
-    }
-    
-    if (isFavorite) {
-      if (!favoriteTracks.some(t => t && t._id === track._id)) {
-        favoriteTracks.push(track);
-      }
-    } else {
-      favoriteTracks = favoriteTracks.filter(t => t && t._id !== track._id);
-    }
-    
-    if (favoriteTracks.length > 100) {
-      favoriteTracks = favoriteTracks.slice(0, 100);
-    }
-    
-    localStorage.setItem('favoriteTracks', JSON.stringify(favoriteTracks));
-
-    
-  } catch (err) {
-    console.error('Ошибка при обновлении локальных избранных:', err);
-    localStorage.removeItem('favoriteTracks');
-  }
-}, []);
-
-  const fixLocalStorage = useCallback(() => {
-    try {
-      const favoritesString = localStorage.getItem('favoriteTracks');
-      if (favoritesString) {
-        const parsed = JSON.parse(favoritesString);
-        if (!Array.isArray(parsed)) {
-          localStorage.removeItem('favoriteTracks');
-          window.dispatchEvent(new Event('favoritesUpdated'));
-          return true;
-        }
-      }
-      return false;
-    } catch {
-      localStorage.removeItem('favoriteTracks');
-      window.dispatchEvent(new Event('favoritesUpdated'));
-      return true;
-    }
-  }, []);
+  }, [user, dispatch, showError, showSuccess]);
 
   return useMemo(() => ({
     toggleFavorite,
     checkIfFavorite,
-    updateLocalFavorites,
-    fixLocalStorage,
+    loadFavoritesFromServer,
     loading,
-  }), [toggleFavorite, checkIfFavorite, updateLocalFavorites, fixLocalStorage, loading]);
+  }), [toggleFavorite, checkIfFavorite, loadFavoritesFromServer, loading]);
 };
