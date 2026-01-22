@@ -5,6 +5,7 @@ import styles from './layout.module.css';
 import ReduxProvider from "@/store/ReduxProvider";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 const montserrat = Montserrat({
   subsets: ["latin", "cyrillic"],
@@ -27,12 +28,14 @@ export default function RootLayout({
       <body className={montserrat.className}>
         <ReduxProvider>
           <AuthProvider>
-            <div className={styles.rootWrapper}>
-              <div className={styles.mainContainer}>
-                {children}
-                <AudioPlayer />
+            <NotificationProvider>
+              <div className={styles.rootWrapper}>
+                <div className={styles.mainContainer}>
+                  {children}
+                  <AudioPlayer />
+                </div>
               </div>
-            </div>
+            </NotificationProvider>
           </AuthProvider>
         </ReduxProvider>
       </body>

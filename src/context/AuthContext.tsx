@@ -1,8 +1,11 @@
+// context/AuthContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '@/api/client'; 
+import { useAppDispatch } from '@/store/hooks';
+import { clearFavorites, setFavoriteTracks } from '@/store/features/trackSlice';
 
 interface AuthContextType {
   user: { email: string; username: string; _id: number } | null;
@@ -33,6 +36,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const dispatch = useAppDispatch();
+
+  const loadUserFavorites = useCallback(async (userAccessToken: string) => {
+    if (!userAccessToken) return;
+    
+    try {
+      const favorites = await ApiClient.getFavoriteTracks();
+      dispatch(setFavoriteTracks(favorites));
+    } catch (err) {
+      console.error('Ошибка загрузки избранных треков при входе:', err);
+      dispatch(setFavoriteTracks([]));
+    }
+  }, [dispatch]);
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const currentRefreshToken = localStorage.getItem('refreshToken');
@@ -47,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       localStorage.setItem('accessToken', newAccessToken);
       setAccessToken(newAccessToken);
+
+      if (user) {
+        await loadUserFavorites(newAccessToken);
+      }
       
       return newAccessToken;
     } catch (err) {
@@ -54,7 +75,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout();
       return null;
     }
-  }, []);
+  }, [user, loadUserFavorites]);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('favoriteTracks');
+
+    // Очищаем избранные в Redux при выходе
+    dispatch(clearFavorites());
+
+    if (window) {
+      window.dispatchEvent(new Event('authStateChanged'));
+      window.dispatchEvent(new Event('favoritesUpdated'));
+    }
+
+    if (pathname?.includes('/favorites')) {
+      router.push('/');
+    }
+
+    router.push('/signin');
+  }, [router, pathname, dispatch]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -64,65 +110,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (storedUser && storedAccessToken && storedRefreshToken) {
         try {
-          const isValid = await ApiClient.verifyToken(storedAccessToken);
+          setUser(JSON.parse(storedUser));
+          setAccessToken(storedAccessToken);
+          setRefreshToken(storedRefreshToken);
           
-          if (!isValid) {
-            const newAccessToken = await refreshAccessToken();
-            
-            if (!newAccessToken) {
-              localStorage.removeItem('user');
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              setUser(null);
-              setAccessToken(null);
-              setRefreshToken(null);
-            } else {
-              setUser(JSON.parse(storedUser));
-              setAccessToken(newAccessToken);
-              setRefreshToken(storedRefreshToken);
-            }
-          } else {
-            setUser(JSON.parse(storedUser));
-            setAccessToken(storedAccessToken);
-            setRefreshToken(storedRefreshToken);
-          }
+          await loadUserFavorites(storedAccessToken);
         } catch (err) {
           console.error('Error during auth initialization:', err);
-
-          localStorage.removeItem('user');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
+          logout();
         }
       }
       setIsLoading(false);
     };
 
     initAuth();
-  }, [refreshAccessToken]);
+  }, [logout, loadUserFavorites]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-
       const userData = await ApiClient.login(email, password);
-      
       const tokens = await ApiClient.getTokens(email, password);
 
       setUser(userData);
       setAccessToken(tokens.access);
       setRefreshToken(tokens.refresh);
-      
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('accessToken', tokens.access);
       localStorage.setItem('refreshToken', tokens.refresh);
+      
+      await loadUserFavorites(tokens.access);
+      
+      window.dispatchEvent(new Event('authStateChanged'));
 
       router.push('/');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Ошибка входа';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await ApiClient.signup(email, password, username);
+      await ApiClient.signup(email, password, username);
 
       await login(email, password);
     } catch (err) {
@@ -145,15 +170,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    router.push('/signin');
-  };
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('unauthorized', handleUnauthorized);
+    
+    return () => {
+      window.removeEventListener('unauthorized', handleUnauthorized);
+    };
+  }, [logout]);
 
   const value: AuthContextType = {
     user,

@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
 import { useAppSelector } from '@/store/hooks';
 import { Track as TrackType } from '@/types/api';
 import FilterList from '@/components/FilterList/FilterList';
 import FilterLength from '@/components/FilterLength/FilterLength';
+
+interface FavoritesCenterBlockProps {
+  serverFavorites?: TrackType[];
+}
 
 type FilterState = {
   artist: string[];
@@ -38,9 +42,7 @@ function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): st
   return Array.from(uniqueValues).sort();
 }
 
-export default function FavoritesCenterBlock() {
-  const [favoriteTracks, setFavoriteTracks] = useState<TrackType[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function FavoritesCenterBlock({ serverFavorites = [] }: FavoritesCenterBlockProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<FilterState>({
@@ -48,62 +50,25 @@ export default function FavoritesCenterBlock() {
     year: [],
     genre: []
   });
-  const { currentPlaylist } = useAppSelector((state) => state.tracks);
+  
+  const { favoriteTracks } = useAppSelector((state) => state.tracks);
 
-  const loadFavorites = () => {
-    try {
-      const favoritesString = localStorage.getItem('favoriteTracks');
-      const tracks = favoritesString ? JSON.parse(favoritesString) : [];
-      setFavoriteTracks(tracks);
-    } catch (err) {
-      console.error('Ошибка загрузки избранных треков:', err);
-      setFavoriteTracks([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadFavorites();
-    }, 0);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const handleFavoritesUpdated = () => {
-      loadFavorites();
-    };
-
-    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
-    
-    return () => {
-      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
-    };
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentPlaylist?.id === -1) {
-        setFavoriteTracks(currentPlaylist.tracks);
-      }
-    }, 0);
-    
-    return () => clearTimeout(timer);
-  }, [currentPlaylist]);
+  const displayTracks = useMemo(() => 
+    serverFavorites.length > 0 ? serverFavorites : favoriteTracks,
+    [serverFavorites, favoriteTracks]
+  );
 
   const uniqueArtists = useMemo(() => 
-    getUniqueValuesFromTracks(favoriteTracks, 'author'), 
-    [favoriteTracks]
+    getUniqueValuesFromTracks(displayTracks, 'author'), 
+    [displayTracks]
   );
   
   const uniqueGenres = useMemo(() => {
-    if (!Array.isArray(favoriteTracks) || favoriteTracks.length === 0) return [];
+    if (!Array.isArray(displayTracks) || displayTracks.length === 0) return [];
     
     const genresSet = new Set<string>();
     
-    favoriteTracks.forEach(track => {
+    displayTracks.forEach(track => {
       if (track.genre && Array.isArray(track.genre)) {
         track.genre.forEach(genre => {
           if (genre && typeof genre === 'string') {
@@ -114,14 +79,14 @@ export default function FavoritesCenterBlock() {
     });
     
     return Array.from(genresSet).sort();
-  }, [favoriteTracks]);
+  }, [displayTracks]);
   
   const uniqueYears = useMemo(() => {
-    if (!Array.isArray(favoriteTracks) || favoriteTracks.length === 0) return [];
+    if (!Array.isArray(displayTracks) || displayTracks.length === 0) return [];
     
     const yearsSet = new Set<string>();
     
-    favoriteTracks.forEach(track => {
+    displayTracks.forEach(track => {
       if (track.release_date && typeof track.release_date === 'string') {
         const year = track.release_date.split('-')[0];
         if (year && year.length === 4 && !isNaN(Number(year))) {
@@ -135,17 +100,13 @@ export default function FavoritesCenterBlock() {
       const yearB = parseInt(b, 10);
       return yearB - yearA;
     });
-  }, [favoriteTracks]);
+  }, [displayTracks]);
   
-  const toggleFilter = (filterName: string) => {
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter(filterName);
-    }
-  };
+  const toggleFilter = useCallback((filterName: string) => {
+    setActiveFilter(prev => prev === filterName ? null : filterName);
+  }, []);
   
-  const handleFilterSelect = (filterName: string, value: string) => {
+  const handleFilterSelect = useCallback((filterName: string, value: string) => {
     setSelectedFilters(prev => {
       const currentValues = prev[filterName as keyof FilterState];
       const valueIndex = currentValues.indexOf(value);
@@ -162,20 +123,18 @@ export default function FavoritesCenterBlock() {
         };
       }
     });
-  };
+  }, []);
   
-  const clearFilter = (filterName: string) => {
+  const clearFilter = useCallback((filterName: string) => {
     setSelectedFilters(prev => ({
       ...prev,
       [filterName]: []
     }));
 
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    }
-  };
+    setActiveFilter(prev => prev === filterName ? null : prev);
+  }, []);
   
-  const getFilterItems = () => {
+  const getFilterItems = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists;
@@ -186,9 +145,9 @@ export default function FavoritesCenterBlock() {
       default:
         return [];
     }
-  };
+  }, [activeFilter, uniqueArtists, uniqueYears, uniqueGenres]);
   
-  const getFilterCount = () => {
+  const getFilterCount = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists.length;
@@ -199,9 +158,9 @@ export default function FavoritesCenterBlock() {
       default:
         return 0;
     }
-  };
+  }, [activeFilter, uniqueArtists.length, uniqueYears.length, uniqueGenres.length]);
 
-  const getFilterDisplayText = (filterName: string) => {
+  const getFilterDisplayText = useCallback((filterName: string) => {
     const selected = selectedFilters[filterName as keyof FilterState];
     if (selected.length === 0) {
       return '';
@@ -210,16 +169,14 @@ export default function FavoritesCenterBlock() {
     } else {
       return `: ${selected.length}`;
     }
-  };
+  }, [selectedFilters]);
   
-  // Фильтрация треков
   const filteredTracks = useMemo(() => {
-    if (!Array.isArray(favoriteTracks)) return [];
+    if (!Array.isArray(displayTracks)) return [];
     
-    return favoriteTracks.filter(track => {
+    return displayTracks.filter(track => {
       if (!track) return false;
 
-      // Фильтр по поиску
       const matchesSearch = searchQuery === '' || 
         (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -227,13 +184,11 @@ export default function FavoritesCenterBlock() {
       
       if (!matchesSearch) return false;
       
-      // Фильтр по исполнителю
       const matchesArtist = selectedFilters.artist.length === 0 || 
         (track.author && selectedFilters.artist.includes(track.author));
       
       if (!matchesArtist) return false;
       
-      // Фильтр по году
       if (selectedFilters.year.length > 0) {
         if (!track.release_date) return false;
         
@@ -243,7 +198,6 @@ export default function FavoritesCenterBlock() {
         if (!matchesYear) return false;
       }
       
-      // Фильтр по жанру
       if (selectedFilters.genre.length > 0) {
         if (!track.genre || !Array.isArray(track.genre)) return false;
         
@@ -256,19 +210,14 @@ export default function FavoritesCenterBlock() {
       
       return true;
     });
-  }, [favoriteTracks, searchQuery, selectedFilters]);
+  }, [displayTracks, searchQuery, selectedFilters]);
 
-  if (loading) {
-    return (
-      <div className={styles.centerblock}>
-        <div className={styles.loading}>Загрузка избранных...</div>
-      </div>
-    );
-  }
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
 
   return (
     <div className={styles.centerblock}>
-      {/* Поисковая строка */}
       <div className={styles.centerblock__search}>
         <svg className={styles.search__svg}>
           <use xlinkHref="/images/icon/sprite.svg#icon-search"></use>
@@ -279,14 +228,12 @@ export default function FavoritesCenterBlock() {
           placeholder="Поиск"
           name="search"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={handleSearchChange}
         />
       </div>
       
-      {/* Заголовок */}
       <h2 className={styles.centerblock__h2}>Мои треки</h2>
       
-      {/* Панель фильтров */}
       <div className={styles.centerblock__filter}>
         <div className={styles.filter__title}>Искать по:</div>
         
@@ -372,7 +319,6 @@ export default function FavoritesCenterBlock() {
         </div>
       </div>
       
-      {/* Список треков */}
       <div className={styles.centerblock__content}>
         <div className={styles.content__title}>
           <div className={`${styles.playlistTitle__col} ${styles.col01}`}>ТРЕК</div>
@@ -393,6 +339,7 @@ export default function FavoritesCenterBlock() {
                 <Track 
                   key={`favorites-${track._id}-${index}-${track.name}`}
                   track={track} 
+                  isInFavoritesPage={true}
                 />
               ))
           ) : (

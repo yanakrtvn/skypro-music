@@ -84,3 +84,12 @@ export interface PlaylistsResponse {
   data: Playlist[];
   message?: string;
 }
+
+export interface FavoriteTracksResponse {
+  success?: boolean;
+  data?: Track[];
+  result?: Track[];
+  tracks?: Track[];
+  items?: Track[];
+  message?: string;
+}

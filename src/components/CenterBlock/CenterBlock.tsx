@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Track from '@/components/Track/Track'
 import styles from './CenterBlock.module.css'
 import FilterList from '@/components/FilterList/FilterList'
@@ -117,15 +117,11 @@ export default function CenterBlock() {
     });
   }, [playlistTracks]);
   
-  const toggleFilter = (filterName: string) => {
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter(filterName);
-    }
-  };
+  const toggleFilter = useCallback((filterName: string) => {
+    setActiveFilter(prev => prev === filterName ? null : filterName);
+  }, []);
   
-  const handleFilterSelect = (filterName: string, value: string) => {
+  const handleFilterSelect = useCallback((filterName: string, value: string) => {
     setSelectedFilters(prev => {
       const currentValues = prev[filterName as keyof FilterState];
       const valueIndex = currentValues.indexOf(value);
@@ -142,20 +138,18 @@ export default function CenterBlock() {
         };
       }
     });
-  };
+  }, []);
   
-  const clearFilter = (filterName: string) => {
+  const clearFilter = useCallback((filterName: string) => {
     setSelectedFilters(prev => ({
       ...prev,
       [filterName]: []
     }));
 
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    }
-  };
+    setActiveFilter(prev => prev === filterName ? null : prev);
+  }, []);
   
-  const getFilterItems = () => {
+  const getFilterItems = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists;
@@ -166,9 +160,9 @@ export default function CenterBlock() {
       default:
         return [];
     }
-  };
+  }, [activeFilter, uniqueArtists, uniqueYears, uniqueGenres]);
   
-  const getFilterCount = () => {
+  const getFilterCount = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists.length;
@@ -179,9 +173,9 @@ export default function CenterBlock() {
       default:
         return 0;
     }
-  };
+  }, [activeFilter, uniqueArtists.length, uniqueYears.length, uniqueGenres.length]);
 
-  const getFilterDisplayText = (filterName: string) => {
+  const getFilterDisplayText = useCallback((filterName: string) => {
     const selected = selectedFilters[filterName as keyof FilterState];
     if (selected.length === 0) {
       return '';
@@ -190,7 +184,7 @@ export default function CenterBlock() {
     } else {
       return `: ${selected.length}`;
     }
-  };
+  }, [selectedFilters]);
   
   const filteredTracks = useMemo(() => {
     if (!Array.isArray(playlistTracks)) return [];
@@ -254,6 +248,10 @@ export default function CenterBlock() {
     return counts;
   }, [playlistTracks, selectedFilters.year]);
 
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
   if (loading) {
     return (
       <div className={styles.centerblock}>
@@ -282,7 +280,7 @@ export default function CenterBlock() {
         placeholder="Поиск"
         name="search"
         value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
+        onChange={handleSearchChange}
       />
     </div>
     
@@ -330,12 +328,6 @@ export default function CenterBlock() {
           {selectedFilters.year.length > 0 && (
             <span className={styles.filter__selected}>
               {getFilterDisplayText('year')}
-              {selectedFilters.year.length === 1 && (
-                <span className={styles.filter__count}>
-                  {getTracksCountByYear[selectedFilters.year[0]] !== undefined && 
-                   ` (${getTracksCountByYear[selectedFilters.year[0]]} треков)`}
-                </span>
-              )}
             </span>
           )}
         </button>

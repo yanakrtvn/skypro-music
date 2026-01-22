@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setCurrentTrack } from '@/store/features/trackSlice';
 import { Track as TrackType } from '@/types/api';
+import { useFavorite } from '@/hooks/useFavorites';
 import styles from './Track.module.css';
 
 function formatTime(seconds: number): string {
@@ -12,97 +13,77 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-export default function Track({ track }: TrackProps) {
+interface TrackProps {
+  track: TrackType;
+  isInFavoritesPage?: boolean;
+}
+
+function TrackComponent({ track, isInFavoritesPage = false }: TrackProps) {
   const { currentTrack, isPlaying, currentPlaylist } = useAppSelector((state) => state.tracks);
   const dispatch = useAppDispatch();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { toggleFavorite, checkIfFavorite, loading: favoriteLoading } = useFavorite();
+  
+  const [isHovered, setIsHovered] = useState<boolean>(false);
+  const [dynamicLikeCount, setDynamicLikeCount] = useState<number>(0);
 
-  const isCurrentTrack = currentTrack?._id === track._id;
+  const isFavorite = useMemo(() => 
+    checkIfFavorite(track._id), 
+    [track._id, checkIfFavorite]
+  );
+
+  const baseLikeCount = useMemo(() => 
+    track.stared_user?.length || 0, 
+    [track.stared_user]
+  );
+
+  const localLikeCount = baseLikeCount + dynamicLikeCount;
+
+  const isCurrentTrack = useMemo(() => 
+    currentTrack?._id === track._id, 
+    [currentTrack, track._id]
+  );
 
   useEffect(() => {
-    const checkIfFavorite = () => {
-      try {
-        const favoritesString = localStorage.getItem('favoriteTracks');
-        const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
-        const isTrackFavorite = favoriteTracks.some(
-          (favTrack: TrackType) => favTrack._id === track._id
+    const handleFavoriteUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.trackId === track._id) {
+        if (customEvent.detail.isFavorite) {
+          setDynamicLikeCount(prev => prev + 1);
+        } else {
+          setDynamicLikeCount(prev => Math.max(-baseLikeCount, prev - 1));
+        }
+      }
+    };
+    
+    const handleTrackLikesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.trackId === track._id) {
+        setDynamicLikeCount(prev => 
+          customEvent.detail.isFavorite ? prev + 1 : Math.max(-baseLikeCount, prev - 1)
         );
-        setIsFavorite(isTrackFavorite);
-      } catch (err) {
-        console.error('Ошибка при проверке избранных треков:', err);
-        setIsFavorite(false);
       }
     };
-
-    checkIfFavorite();
-
-    const handleFavoritesUpdated = () => {
-      checkIfFavorite();
-    };
-
-    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
+    
+    window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
+    window.addEventListener('trackLikesUpdated', handleTrackLikesUpdated);
     
     return () => {
-      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
+      window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
+      window.removeEventListener('trackLikesUpdated', handleTrackLikesUpdated);
     };
-  }, [track._id]);
+  }, [track._id, baseLikeCount]);
 
-  useEffect(() => {
-    const handleCurrentTrackFavoriteUpdated = (e: CustomEvent) => {
-      if (isCurrentTrack && e.detail?.isFavorite !== undefined) {
-        setIsFavorite(e.detail.isFavorite);
-      }
-    };
-
-    window.addEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
-    
-    return () => {
-      window.removeEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
-    };
-  }, [isCurrentTrack]);
-
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     try {
-      const favoritesString = localStorage.getItem('favoriteTracks');
-      const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
-      
-      const trackIndex = favoriteTracks.findIndex(
-        (favTrack: TrackType) => favTrack._id === track._id
-      );
-      
-      let updatedFavorites: TrackType[];
-      let newFavoriteState: boolean;
-      
-      if (trackIndex === -1) {
-        updatedFavorites = [...favoriteTracks, track];
-        newFavoriteState = true;
-        setIsFavorite(true);
-      } else {
-        updatedFavorites = favoriteTracks.filter(
-          (favTrack: TrackType) => favTrack._id !== track._id
-        );
-        newFavoriteState = false;
-        setIsFavorite(false);
-      }
-      
-      localStorage.setItem('favoriteTracks', JSON.stringify(updatedFavorites));
-      window.dispatchEvent(new Event('favoritesUpdated'));
-
-      if (isCurrentTrack) {
-        const event = new CustomEvent('currentTrackFavoriteUpdated', {
-          detail: { isFavorite: newFavoriteState }
-        });
-        window.dispatchEvent(event);
-      }
-      
-    } catch (err) {
-      console.error('Ошибка при обновлении избранных:', err);
+      await toggleFavorite(track, isFavorite);
+    } catch (error) {
+      console.error('Ошибка при переключении лайка:', error);
     }
-  };
+  }, [track, isFavorite, toggleFavorite]);
 
-  const handleTrackClick = () => {
+  const handleTrackClick = useCallback(() => {
     if (!currentPlaylist) {
       console.error('No current playlist');
       return;
@@ -114,10 +95,25 @@ export default function Track({ track }: TrackProps) {
         playlist: currentPlaylist 
       }));
     }
-  };
+  }, [currentPlaylist, isCurrentTrack, track, dispatch]);
+
+  const trackDuration = useMemo(() => 
+    formatTime(track.duration_in_seconds), 
+    [track.duration_in_seconds]
+  );
 
   return (
-    <div className={styles.playlist__item} onClick={handleTrackClick}>
+    <div 
+      className={styles.playlist__item} 
+      onClick={handleTrackClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        cursor: 'pointer',
+        transition: 'background-color 0.2s ease',
+        backgroundColor: isHovered ? 'rgba(173, 97, 255, 0.05)' : 'transparent'
+      }}
+    >
       <div className={styles.playlist__track}>
         <div className={styles.track__title}>
           <div className={styles.track__titleImage}>
@@ -161,7 +157,7 @@ export default function Track({ track }: TrackProps) {
           <div 
             onClick={handleToggleFavorite}
             style={{ 
-              cursor: 'pointer',
+              cursor: favoriteLoading ? 'wait' : 'pointer',
               marginRight: '17px',
               display: 'flex',
               alignItems: 'center',
@@ -169,31 +165,64 @@ export default function Track({ track }: TrackProps) {
               width: '24px',
               height: '24px',
               borderRadius: '50%',
-              transition: 'background-color 0.2s ease'
+              transition: 'all 0.2s ease',
+              position: 'relative'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(173, 97, 255, 0.1)';
+              if (!favoriteLoading) {
+                e.currentTarget.style.backgroundColor = 'rgba(173, 97, 255, 0.1)';
+              }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
+            title={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
           >
-            <svg 
-              width="14" 
-              height="12" 
-              viewBox="0 0 14 12"
-              fill={isFavorite ? "#ad61ff" : "none"}
-              stroke={isFavorite ? "#ad61ff" : "#696969"}
-              strokeWidth="2"
-              style={{
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <path d="M6.65242 1.89789C7.92929 0.420498 10.0241 0.282701 11.3595 1.70955C12.6948 3.1364 12.7837 5.46349 11.6265 6.99496L6.49976 12L1.37305 6.99496C0.215841 5.46349 0.304779 3.1364 1.64012 1.70955C2.97547 0.282701 5.07025 0.420498 6.34712 1.89789L6.49976 2.06847L6.65242 1.89789Z" />
-            </svg>
+            {favoriteLoading ? (
+              <div className={styles.loadingSpinner}></div>
+            ) : (
+              <>
+                <svg 
+                  width="14" 
+                  height="12" 
+                  viewBox="0 0 14 12"
+                  fill={isFavorite ? "#ad61ff" : "none"}
+                  stroke={isFavorite ? "#ad61ff" : "#696969"}
+                  strokeWidth="2"
+                  style={{
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <path d="M6.65242 1.89789C7.92929 0.420498 10.0241 0.282701 11.3595 1.70955C12.6948 3.1364 12.7837 5.46349 11.6265 6.99496L6.49976 12L1.37305 6.99496C0.215841 5.46349 0.304779 3.1364 1.64012 1.70955C2.97547 0.282701 5.07025 0.420498 6.34712 1.89789L6.49976 2.06847L6.65242 1.89789Z" />
+                </svg>
+                
+                {/* Счетчик лайков */}
+                {localLikeCount > 0 && (
+                  <span 
+                    style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      background: isFavorite ? '#ad61ff' : '#696969',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '16px',
+                      height: '16px',
+                      fontSize: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {localLikeCount > 9 ? '9+' : localLikeCount}
+                  </span>
+                )}
+              </>
+            )}
           </div>
           <span className={styles.track__timeText}>
-            {formatTime(track.duration_in_seconds)}
+            {trackDuration}
           </span>
         </div>
       </div>
@@ -201,6 +230,4 @@ export default function Track({ track }: TrackProps) {
   );
 }
 
-interface TrackProps {
-  track: TrackType;
-}
+export default memo(TrackComponent);

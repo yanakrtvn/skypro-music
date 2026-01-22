@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
@@ -60,7 +60,6 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     return currentPlaylist?.name || title;
   }, [currentPlaylist, title]);
   
-
   const uniqueArtists = useMemo(() => 
     getUniqueValuesFromTracks(tracks, 'author'), 
     [tracks]
@@ -105,15 +104,11 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     });
   }, [tracks]);
   
-  const toggleFilter = (filterName: string) => {
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter(filterName);
-    }
-  };
+  const toggleFilter = useCallback((filterName: string) => {
+    setActiveFilter(prev => prev === filterName ? null : filterName);
+  }, []);
   
-  const handleFilterSelect = (filterName: string, value: string) => {
+  const handleFilterSelect = useCallback((filterName: string, value: string) => {
     setSelectedFilters(prev => {
       const currentValues = prev[filterName as keyof FilterState];
       const valueIndex = currentValues.indexOf(value);
@@ -130,20 +125,18 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
         };
       }
     });
-  };
+  }, []);
   
-  const clearFilter = (filterName: string) => {
+  const clearFilter = useCallback((filterName: string) => {
     setSelectedFilters(prev => ({
       ...prev,
       [filterName]: []
     }));
 
-    if (activeFilter === filterName) {
-      setActiveFilter(null);
-    }
-  };
+    setActiveFilter(prev => prev === filterName ? null : prev);
+  }, []);
   
-  const getFilterItems = () => {
+  const getFilterItems = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists;
@@ -154,9 +147,9 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
       default:
         return [];
     }
-  };
+  }, [activeFilter, uniqueArtists, uniqueYears, uniqueGenres]);
   
-  const getFilterCount = () => {
+  const getFilterCount = useCallback(() => {
     switch(activeFilter) {
       case 'artist':
         return uniqueArtists.length;
@@ -167,9 +160,9 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
       default:
         return 0;
     }
-  };
+  }, [activeFilter, uniqueArtists.length, uniqueYears.length, uniqueGenres.length]);
 
-  const getFilterDisplayText = (filterName: string) => {
+  const getFilterDisplayText = useCallback((filterName: string) => {
     const selected = selectedFilters[filterName as keyof FilterState];
     if (selected.length === 0) {
       return '';
@@ -178,7 +171,7 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     } else {
       return `: ${selected.length}`;
     }
-  };
+  }, [selectedFilters]);
   
   // Фильтрация треков
   const filteredTracks = useMemo(() => {
@@ -226,6 +219,10 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     });
   }, [tracks, searchQuery, selectedFilters]);
   
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
   return (
     <div className={styles.centerblock}>
       {/* Поисковая строка */}
@@ -239,7 +236,7 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
           placeholder="Поиск"
           name="search"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={handleSearchChange}
         />
       </div>
       

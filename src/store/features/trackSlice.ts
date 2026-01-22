@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Track as ApiTrack } from '@/types/api';
+import { Track as ApiTrack, FavoriteTracksResponse } from '@/types/api';
 
 type TrackType = ApiTrack;
 
@@ -22,6 +22,9 @@ type InitialStateType = {
   currentPlaylist: PlaylistType | null;
   allTracks: TrackType[];
   playlistTracks: TrackType[];
+  favoriteTracks: TrackType[];
+  favoriteTrackIds: number[];
+  isFavoritesLoading: boolean;
 };
 
 const initialState: InitialStateType = {
@@ -41,6 +44,9 @@ const initialState: InitialStateType = {
     tracks: [],
   },
   allTracks: [],
+  favoriteTracks: [],
+  favoriteTrackIds: [],
+  isFavoritesLoading: false,
 };
 
 const trackSlice = createSlice({
@@ -261,6 +267,90 @@ const trackSlice = createSlice({
         state.currentShuffleIndex = 0;
       }
     },
+
+    setFavoriteTracks: (state, action: PayloadAction<TrackType[] | FavoriteTracksResponse>) => {
+  try {
+    let tracksArray: TrackType[] = [];
+
+    if (Array.isArray(action.payload)) {
+      tracksArray = action.payload;
+    } else if (action.payload && typeof action.payload === 'object') {
+      const response = action.payload as FavoriteTracksResponse;
+      if (Array.isArray(response.data)) {
+        tracksArray = response.data;
+      } else if (Array.isArray(response.result)) {
+        tracksArray = response.result;
+      } else if (Array.isArray(response.tracks)) {
+        tracksArray = response.tracks;
+      } else if (Array.isArray(response.items)) {
+        tracksArray = response.items;
+      }
+    }
+
+    const validTracks = tracksArray.filter((track): track is TrackType => 
+      track && typeof track === 'object' && track._id !== undefined
+    );
+    
+    state.favoriteTracks = validTracks;
+    state.favoriteTrackIds = validTracks.map(track => track._id);
+    state.isFavoritesLoading = false;
+    
+  } catch (error) {
+    console.error('Ошибка в setFavoriteTracks:', error, action.payload);
+    state.favoriteTracks = [];
+    state.favoriteTrackIds = [];
+    state.isFavoritesLoading = false;
+  }
+},
+    
+    addToFavorites: (state, action: PayloadAction<TrackType>) => {
+      const track = action.payload;
+      if (!state.favoriteTrackIds.includes(track._id)) {
+        state.favoriteTracks.push(track);
+        state.favoriteTrackIds.push(track._id);
+        
+        if (state.allTracks.length > 0) {
+          const trackIndex = state.allTracks.findIndex(t => t._id === track._id);
+          if (trackIndex !== -1) {
+            const updatedTrack = { ...state.allTracks[trackIndex] };
+            if (!updatedTrack.stared_user) {
+              updatedTrack.stared_user = [];
+            }
+
+            if (!updatedTrack.stared_user.includes('current_user')) {
+              updatedTrack.stared_user.push('current_user');
+            }
+            state.allTracks[trackIndex] = updatedTrack;
+          }
+        }
+      }
+    },
+    
+    removeFromFavorites: (state, action: PayloadAction<number>) => {
+      const trackId = action.payload;
+      state.favoriteTracks = state.favoriteTracks.filter(track => track._id !== trackId);
+      state.favoriteTrackIds = state.favoriteTrackIds.filter(id => id !== trackId);
+
+      if (state.allTracks.length > 0) {
+        const trackIndex = state.allTracks.findIndex(t => t._id === trackId);
+        if (trackIndex !== -1) {
+          const updatedTrack = { ...state.allTracks[trackIndex] };
+          if (updatedTrack.stared_user) {
+            updatedTrack.stared_user = updatedTrack.stared_user.filter(user => user !== 'current_user');
+          }
+          state.allTracks[trackIndex] = updatedTrack;
+        }
+      }
+    },
+    
+    setFavoritesLoading: (state, action: PayloadAction<boolean>) => {
+      state.isFavoritesLoading = action.payload;
+    },
+    
+    clearFavorites: (state) => {
+      state.favoriteTracks = [];
+      state.favoriteTrackIds = [];
+    }
   },
 });
 
@@ -288,6 +378,11 @@ export const {
   seekToTime,
   setPlaylistTracks,
   setSpecificPlaylist,
+  setFavoriteTracks,
+  addToFavorites,
+  removeFromFavorites,
+  setFavoritesLoading,
+  clearFavorites,
 } = trackSlice.actions;
 
 export const trackSliceReducer = trackSlice.reducer;

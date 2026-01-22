@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { 
   togglePlay, 
@@ -13,8 +13,8 @@ import {
   setDuration,
   setCurrentTime 
 } from '@/store/features/trackSlice';
+import { useFavorite } from '@/hooks/useFavorites';
 import styles from './Bar.module.css';
-import { Track as TrackType } from '@/types/api';
 
 function formatTime(seconds: number): string {
   if (isNaN(seconds)) return '0:00';
@@ -36,87 +36,48 @@ export default function Bar() {
   const dispatch = useAppDispatch();
   
   const [isDragging, setIsDragging] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
+  
+  const { toggleFavorite, checkIfFavorite, loading: favoriteLoading } = useFavorite();
+
+  const isFavorite = useMemo(() => 
+    currentTrack ? checkIfFavorite(currentTrack._id) : false, 
+    [currentTrack, checkIfFavorite]
+  );
+
+  const likeCount = useMemo(() => 
+    currentTrack?.stared_user?.length || 0, 
+    [currentTrack]
+  );
 
   useEffect(() => {
-    const checkIfFavorite = () => {
-      if (currentTrack) {
-        try {
-          const favoritesString = localStorage.getItem('favoriteTracks');
-          const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
-          const isTrackFavorite = favoriteTracks.some(
-            (track: TrackType) => track._id === currentTrack._id
-          );
-          setIsFavorite(isTrackFavorite);
-        } catch (err) {
-          console.error('Ошибка при проверке избранных треков:', err);
-          setIsFavorite(false);
-        }
-      } else {
-        setIsFavorite(false);
+    const handleFavoriteUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (currentTrack && customEvent.detail?.trackId === currentTrack._id) {
+
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 300);
       }
     };
 
-    checkIfFavorite();
-    
-    const handleFavoritesUpdated = () => {
-      checkIfFavorite();
-    };
-
-    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
+    window.addEventListener('favoriteUpdated', handleFavoriteUpdated);
     
     return () => {
-      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
+      window.removeEventListener('favoriteUpdated', handleFavoriteUpdated);
     };
   }, [currentTrack]);
 
-  useEffect(() => {
-    const handleCurrentTrackFavoriteUpdated = (e: CustomEvent) => {
-      if (e.detail?.isFavorite !== undefined) {
-        setIsFavorite(e.detail.isFavorite);
-      }
-    };
-
-    window.addEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
-    
-    return () => {
-      window.removeEventListener('currentTrackFavoriteUpdated', handleCurrentTrackFavoriteUpdated as EventListener);
-    };
-  }, []);
-
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentTrack) return;
     
     try {
-      const favoritesString = localStorage.getItem('favoriteTracks');
-      const favoriteTracks: TrackType[] = favoritesString ? JSON.parse(favoritesString) : [];
-      
-      const trackIndex = favoriteTracks.findIndex(
-        (track: TrackType) => track._id === currentTrack._id
-      );
-      
-      if (trackIndex === -1) {
-        const updatedFavorites = [...favoriteTracks, currentTrack];
-        localStorage.setItem('favoriteTracks', JSON.stringify(updatedFavorites));
-        setIsFavorite(true);
-      } else {
-        const updatedFavorites = favoriteTracks.filter(
-          (track: TrackType) => track._id !== currentTrack._id
-        );
-        localStorage.setItem('favoriteTracks', JSON.stringify(updatedFavorites));
-        setIsFavorite(false);
-      }
-      
-      window.dispatchEvent(new Event('favoritesUpdated'));
-      
-      console.log(`Трек ${isFavorite ? 'удален из' : 'добавлен в'} избранные`);
-      
+      await toggleFavorite(currentTrack, isFavorite);
     } catch (err) {
-      console.error('Ошибка при обновлении избранных:', err);
+      console.error('Ошибка при обновлении избранного в плеере:', err);
     }
-  };
+  }, [currentTrack, isFavorite, toggleFavorite]);
 
   const handleTrackEnd = useCallback(() => {
     if (loop) {
@@ -173,32 +134,32 @@ export default function Bar() {
     }
   }, [volume]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     dispatch(togglePlay());
-  };
+  }, [dispatch]);
 
-  const handleNextTrack = () => {
+  const handleNextTrack = useCallback(() => {
     dispatch(nextTrack());
-  };
+  }, [dispatch]);
 
-  const handlePrevTrack = () => {
+  const handlePrevTrack = useCallback(() => {
     dispatch(prevTrack());
-  };
+  }, [dispatch]);
 
-  const handleShuffle = () => {
+  const handleShuffle = useCallback(() => {
     dispatch(setShuffle(!shuffle));
-  };
+  }, [shuffle, dispatch]);
 
-  const handleLoop = () => {
+  const handleLoop = useCallback(() => {
     dispatch(setLoop(!loop));
-  };
+  }, [loop, dispatch]);
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     dispatch(setVolume(newVolume));
-  };
+  }, [dispatch]);
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || !duration) return;
     
     const rect = progressBarRef.current.getBoundingClientRect();
@@ -211,9 +172,19 @@ export default function Bar() {
     if (audioElement) {
       audioElement.currentTime = newTime;
     }
-  };
+  }, [duration, dispatch]);
 
-  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressDrag = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !progressBarRef.current || !duration) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const clickPosition = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = clickPosition * duration;
+    
+    dispatch(setCurrentTime(newTime));
+  }, [isDragging, duration, dispatch]);
+
+  const handleProgressMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
     handleProgressDrag(e);
     
@@ -229,20 +200,17 @@ export default function Bar() {
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
+  }, [handleProgressDrag]);
 
-  const handleProgressDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !progressBarRef.current || !duration) return;
-    
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickPosition = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const newTime = clickPosition * duration;
-    
-    dispatch(setCurrentTime(newTime));
-  };
-
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const volumePercentage = volume * 100;
+  const progressPercentage = useMemo(() => 
+    duration > 0 ? (currentTime / duration) * 100 : 0, 
+    [duration, currentTime]
+  );
+  
+  const volumePercentage = useMemo(() => 
+    volume * 100, 
+    [volume]
+  );
 
   if (!currentTrack) {
     return null;
@@ -348,44 +316,76 @@ export default function Bar() {
               </div>
               
               <div className={styles.trackPlay__likeDislike}>
-              <div 
-                className={styles.trackPlay__likeWrapper}
-                onClick={handleToggleFavorite}
-                style={{ 
-                  cursor: 'pointer',
-                  padding: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <svg 
-                  width="14" 
-                  height="12" 
-                  viewBox="0 0 14 12"
-                  fill="none"
-                  stroke={isFavorite ? "#ad61ff" : "#696969"}
-                  strokeWidth="2"
-                  style={{
-                    transition: 'all 0.2s ease'
+                <div 
+                  className={styles.trackPlay__likeWrapper}
+                  onClick={handleToggleFavorite}
+                  style={{ 
+                    cursor: favoriteLoading ? 'wait' : 'pointer',
+                    padding: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
                   }}
+                  title={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
                 >
-                  <path d="M6.65242 1.89789C7.92929 0.420498 10.0241 0.282701 11.3595 1.70955C12.6948 3.1364 12.7837 5.46349 11.6265 6.99496L6.49976 12L1.37305 6.99496C0.215841 5.46349 0.304779 3.1364 1.64012 1.70955C2.97547 0.282701 5.07025 0.420498 6.34712 1.89789L6.49976 2.06847L6.65242 1.89789Z" />
-                </svg>
+                  {favoriteLoading ? (
+                    <div className={styles.loadingSpinner}></div>
+                  ) : (
+                    <>
+                      <svg 
+                        width="14" 
+                        height="12" 
+                        viewBox="0 0 14 12"
+                        fill={isFavorite ? "#ad61ff" : "none"}
+                        stroke={isFavorite ? "#ad61ff" : "#696969"}
+                        strokeWidth="2"
+                        style={{
+                          transition: 'all 0.2s ease',
+                          transform: isAnimating ? 'scale(1.3)' : 'scale(1)'
+                        }}
+                      >
+                        <path d="M6.65242 1.89789C7.92929 0.420498 10.0241 0.282701 11.3595 1.70955C12.6948 3.1364 12.7837 5.46349 11.6265 6.99496L6.49976 12L1.37305 6.99496C0.215841 5.46349 0.304779 3.1364 1.64012 1.70955C2.97547 0.282701 5.07025 0.420498 6.34712 1.89789L6.49976 2.06847L6.65242 1.89789Z" />
+                      </svg>
+                      
+                      {/* Счетчик лайков */}
+                      {likeCount > 0 && (
+                        <span 
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            right: '2px',
+                            background: isFavorite ? '#ad61ff' : '#696969',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '14px',
+                            height: '14px',
+                            fontSize: '9px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {likeCount > 9 ? '9+' : likeCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginLeft: '20px',
+                  fontSize: '14px',
+                  color: '#696969'
+                }}>
+                  <span>{formatTime(currentTime)}</span>
+                  <span style={{ margin: '0 5px' }}>/</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
               </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                marginLeft: '20px',
-                fontSize: '14px',
-                color: '#696969'
-              }}>
-                <span>{formatTime(currentTime)}</span>
-                <span style={{ margin: '0 5px' }}>/</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
             </div>
           </div>
           
