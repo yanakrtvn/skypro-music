@@ -1,23 +1,30 @@
 export function formatTime(seconds: number): string {
+  if (isNaN(seconds)) return '0:00';
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-export function getUniqueValuesFromTracks<T extends object>(arr: T[], key: keyof T): string[] {
+type TrackLike = Record<string, unknown>;
+
+export function getUniqueValuesFromTracks<T extends TrackLike>(arr: T[], key: keyof T): string[] {
+  if (!Array.isArray(arr)) return [];
+  
   const uniqueValues = new Set<string>();
   
   arr.forEach((item) => {
-    const value = item[key] as unknown;
+    if (!item || typeof item !== 'object') return;
+    
+    const value = item[key];
     
     if (Array.isArray(value)) {
-      (value as string[]).forEach((v) => {
-        if (v) uniqueValues.add(v);
+      (value as unknown[]).forEach((v) => {
+        if (v != null && String(v).trim() !== '') {
+          uniqueValues.add(String(v));
+        }
       });
-    } else if (typeof value === 'string') {
-      uniqueValues.add(value);
-    } else if (typeof value === 'number') {
-      uniqueValues.add(value.toString());
+    } else if (value != null && String(value).trim() !== '') {
+      uniqueValues.add(String(value));
     }
   });
   

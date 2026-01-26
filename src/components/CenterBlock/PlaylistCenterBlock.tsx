@@ -7,6 +7,7 @@ import styles from './CenterBlock.module.css';
 import { Track as TrackType } from '@/types/api';
 import FilterList from '@/components/FilterList/FilterList';
 import FilterLength from '@/components/FilterLength/FilterLength';
+import { usePathname } from 'next/navigation';
 
 interface PlaylistCenterBlockProps {
   title: string;
@@ -51,6 +52,34 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     year: [],
     genre: []
   });
+  
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const resetFilters = () => {
+      setSearchQuery('');
+      setActiveFilter(null);
+      setSelectedFilters({
+        artist: [],
+        year: [],
+        genre: []
+      });
+    };
+
+    resetFilters();
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      setSearchQuery('');
+      setActiveFilter(null);
+      setSelectedFilters({
+        artist: [],
+        year: [],
+        genre: []
+      });
+    };
+  }, []);
   
   const tracks = useMemo(() => {
     return currentPlaylist?.tracks || [];
@@ -180,11 +209,10 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
     return tracks.filter(track => {
       if (!track) return false;
 
-      // Фильтр по поиску
       const matchesSearch = searchQuery === '' || 
-        (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (track.album && track.album.toLowerCase().includes(searchQuery.toLowerCase()));
+        (track.name && track.name.toLowerCase().startsWith(searchQuery.toLowerCase())) ||
+        (track.author && track.author.toLowerCase().startsWith(searchQuery.toLowerCase())) ||
+        (track.album && track.album.toLowerCase().startsWith(searchQuery.toLowerCase()));
       
       if (!matchesSearch) return false;
       
@@ -353,10 +381,10 @@ export default function PlaylistCenterBlock({ title }: PlaylistCenterBlockProps)
                 />
               ))
           ) : (
-            <div className={styles.emptyPlaylist}>
+            <div className={styles.noResults}>
               {searchQuery || selectedFilters.artist.length > 0 || 
                selectedFilters.year.length > 0 || selectedFilters.genre.length > 0
-                ? 'По вашему запросу ничего не найдено'
+                ? 'Нет подходящих треков'
                 : 'В данном плейлисте пока нет треков'
               }
             </div>

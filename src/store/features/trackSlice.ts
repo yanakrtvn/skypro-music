@@ -237,38 +237,54 @@ const trackSlice = createSlice({
       state.currentTime = Math.min(Math.max(0, action.payload), state.duration);
     },
 
-    setPlaylistTracks: (state, action: PayloadAction<TrackType[]>) => {
-      state.playlistTracks = action.payload;
-      
-      if (state.currentPlaylist) {
-        state.currentPlaylist.tracks = action.payload;
-      }
+setPlaylistTracks: (state, action: PayloadAction<TrackType[]>) => {
+  const sortedTracks = [...action.payload].sort((a, b) => {
+    if (!a.release_date || !b.release_date) return 0;
+    
+    const dateA = new Date(a.release_date).getTime();
+    const dateB = new Date(b.release_date).getTime();
+    return dateB - dateA; 
+  });
+  
+  state.playlistTracks = sortedTracks;
+  
+  if (state.currentPlaylist) {
+    state.currentPlaylist.tracks = sortedTracks;
+  }
 
-      state.allTracks = action.payload;
+  state.allTracks = sortedTracks;
 
-      if (!state.currentTrack && action.payload.length > 0) {
-        state.currentTrack = action.payload[0];
-      }
-    },
+  if (!state.currentTrack && sortedTracks.length > 0) {
+    state.currentTrack = sortedTracks[0];
+  }
+},
 
-    setSpecificPlaylist: (state, action: PayloadAction<{id: number, name: string, tracks: TrackType[]}>) => {
-      state.currentPlaylist = {
-        id: action.payload.id,
-        name: action.payload.name,
-        tracks: action.payload.tracks
-      };
+setSpecificPlaylist: (state, action: PayloadAction<{id: number, name: string, tracks: TrackType[]}>) => {
+  const sortedTracks = [...action.payload.tracks].sort((a, b) => {
+    if (!a.release_date || !b.release_date) return 0;
+    
+    const dateA = new Date(a.release_date).getTime();
+    const dateB = new Date(b.release_date).getTime();
+    return dateB - dateA;
+  });
+  
+  state.currentPlaylist = {
+    id: action.payload.id,
+    name: action.payload.name,
+    tracks: sortedTracks
+  };
 
-      if (!state.currentTrack && action.payload.tracks.length > 0) {
-        state.currentTrack = action.payload.tracks[0];
-      }
+  if (!state.currentTrack && sortedTracks.length > 0) {
+    state.currentTrack = sortedTracks[0];
+  }
 
-      if (state.shuffle) {
-        state.shuffledOrder = generateShuffledOrder(action.payload.tracks.length);
-        state.currentShuffleIndex = 0;
-      }
-    },
+  if (state.shuffle) {
+    state.shuffledOrder = generateShuffledOrder(sortedTracks.length);
+    state.currentShuffleIndex = 0;
+  }
+},
 
-    setFavoriteTracks: (state, action: PayloadAction<TrackType[] | FavoriteTracksResponse>) => {
+setFavoriteTracks: (state, action: PayloadAction<TrackType[] | FavoriteTracksResponse>) => {
   try {
     let tracksArray: TrackType[] = [];
 
@@ -291,8 +307,16 @@ const trackSlice = createSlice({
       track && typeof track === 'object' && track._id !== undefined
     );
     
-    state.favoriteTracks = validTracks;
-    state.favoriteTrackIds = validTracks.map(track => track._id);
+    const sortedTracks = validTracks.sort((a, b) => {
+      if (!a.release_date || !b.release_date) return 0;
+      
+      const dateA = new Date(a.release_date).getTime();
+      const dateB = new Date(b.release_date).getTime();
+      return dateB - dateA;
+    });
+    
+    state.favoriteTracks = sortedTracks;
+    state.favoriteTrackIds = sortedTracks.map(track => track._id);
     state.isFavoritesLoading = false;
     
   } catch (error) {
