@@ -86,30 +86,30 @@ export class ApiClient {
 }
 
   private static async requestWithAuth<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    skipJsonParse = false
-  ): Promise<T> {
-    const accessToken = localStorage.getItem('accessToken');
-    const refreshToken = localStorage.getItem('refreshToken');
-    
-    if (!accessToken) {
-      throw new Error('Требуется авторизация');
-    }
-    
-    const requestFn = async (): Promise<T> => {
-      return this.request<T>(endpoint, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }, skipJsonParse);
-    };
-    
-    return withReAuth(requestFn, refreshToken);
+  endpoint: string,
+  options: RequestInit = {},
+  skipJsonParse = false
+): Promise<T> {
+  const accessToken = localStorage.getItem('accessToken');
+  const refreshToken = localStorage.getItem('refreshToken');
+  
+  if (!accessToken || !refreshToken) {
+    throw new Error('Требуется авторизация');
   }
+  
+  const requestFn = async (): Promise<T> => {
+    return this.request<T>(endpoint, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }, skipJsonParse);
+  };
+  
+  return withReAuth(requestFn, accessToken, refreshToken);
+}
 
   // Регистрация
   static async signup(email: string, password: string, username: string): Promise<AuthResponse> {
@@ -491,6 +491,12 @@ export class ApiClient {
     
   } catch (error) {
     console.error('Ошибка загрузки избранных треков:', error);
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      throw new Error('Необходима авторизация. Пожалуйста, войдите снова.');
+    }
+    
     throw error;
   }
 }

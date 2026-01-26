@@ -1,4 +1,3 @@
-// context/AuthContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -39,44 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
 
-  const loadUserFavorites = useCallback(async (userAccessToken: string) => {
-    if (!userAccessToken) return;
-    
-    try {
-      const favorites = await ApiClient.getFavoriteTracks();
-      dispatch(setFavoriteTracks(favorites));
-    } catch (err) {
-      console.error('Ошибка загрузки избранных треков при входе:', err);
-      dispatch(setFavoriteTracks([]));
-    }
-  }, [dispatch]);
-
-  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
-    const currentRefreshToken = localStorage.getItem('refreshToken');
-    
-    if (!currentRefreshToken) {
-      return null;
-    }
-
-    try {
-      const response = await ApiClient.refreshToken(currentRefreshToken);
-      const newAccessToken = response.access;
-      
-      localStorage.setItem('accessToken', newAccessToken);
-      setAccessToken(newAccessToken);
-
-      if (user) {
-        await loadUserFavorites(newAccessToken);
-      }
-      
-      return newAccessToken;
-    } catch (err) {
-      console.error('Failed to refresh access token:', err);
-      logout();
-      return null;
-    }
-  }, [user, loadUserFavorites]);
-
   const logout = useCallback(() => {
     setUser(null);
     setAccessToken(null);
@@ -87,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('favoriteTracks');
 
-    // Очищаем избранные в Redux при выходе
     dispatch(clearFavorites());
 
     if (window) {
@@ -102,31 +62,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/signin');
   }, [router, pathname, dispatch]);
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = localStorage.getItem('user');
-      const storedAccessToken = localStorage.getItem('accessToken');
-      const storedRefreshToken = localStorage.getItem('refreshToken');
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    const currentRefreshToken = localStorage.getItem('refreshToken');
+    
+    if (!currentRefreshToken) {
+      logout();
+      return null;
+    }
 
-      if (storedUser && storedAccessToken && storedRefreshToken) {
-        try {
-          setUser(JSON.parse(storedUser));
-          setAccessToken(storedAccessToken);
-          setRefreshToken(storedRefreshToken);
-          
-          await loadUserFavorites(storedAccessToken);
-        } catch (err) {
-          console.error('Error during auth initialization:', err);
-          logout();
-        }
+    try {
+      const response = await ApiClient.refreshToken(currentRefreshToken);
+      const newAccessToken = response.access;
+      
+      localStorage.setItem('accessToken', newAccessToken);
+      setAccessToken(newAccessToken);
+      
+      return newAccessToken;
+    } catch (err) {
+      console.error('Failed to refresh access token:', err);
+      logout();
+      return null;
+    }
+  }, [logout]);
+
+  const loadUserFavorites = useCallback(async (): Promise<void> => {
+  const currentAccessToken = localStorage.getItem('accessToken');
+  const currentRefreshToken = localStorage.getItem('refreshToken');
+  
+  if (!currentAccessToken || !currentRefreshToken) {
+    dispatch(setFavoriteTracks([]));
+    return;
+  }
+  
+  try {
+    const favorites = await ApiClient.getFavoriteTracks();
+    dispatch(setFavoriteTracks(favorites));
+  } catch (err) {
+    console.error('Ошибка загрузки избранных треков:', err);
+    
+    const newToken = await refreshAccessToken();
+    
+    if (newToken) {
+      try {
+        const favorites = await ApiClient.getFavoriteTracks();
+        dispatch(setFavoriteTracks(favorites));
+        return;
+      } catch (retryErr) {
+        console.error('Ошибка после обновления токена:', retryErr);
       }
-      setIsLoading(false);
-    };
+    }
 
-    initAuth();
-  }, [logout, loadUserFavorites]);
+    dispatch(setFavoriteTracks([]));
+  }
+}, [dispatch, refreshAccessToken]);
 
-  const login = async (email: string, password: string) => {
+  const initAuth = useCallback(async () => {
+    const storedUser = localStorage.getItem('user');
+    const storedAccessToken = localStorage.getItem('accessToken');
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+
+    if (storedUser && storedAccessToken && storedRefreshToken) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        setAccessToken(storedAccessToken);
+        setRefreshToken(storedRefreshToken);        
+        
+        setTimeout(() => {
+          loadUserFavorites();
+        }, 100);
+      } catch (err) {
+        console.error('Error during auth initialization:', err);
+        logout();
+      }
+    } else {
+    }
+    setIsLoading(false);
+  }, [loadUserFavorites, logout]);
+
+  const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     
@@ -140,26 +154,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('accessToken', tokens.access);
       localStorage.setItem('refreshToken', tokens.refresh);
+    
+      setTimeout(() => {
+        loadUserFavorites();
+        window.dispatchEvent(new Event('authStateChanged'));
+      }, 100);
       
-      await loadUserFavorites(tokens.access);
-      
-      window.dispatchEvent(new Event('authStateChanged'));
-
       router.push('/');
     } catch (err) {
+      console.error('Ошибка входа:', err);
       throw err;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router, loadUserFavorites]);
 
-  const signup = async (email: string, password: string, username: string) => {
+  const signup = useCallback(async (email: string, password: string, username: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
       await ApiClient.signup(email, password, username);
-
       await login(email, password);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка регистрации';
@@ -168,7 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [login]);
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   useEffect(() => {
     const handleUnauthorized = () => {
