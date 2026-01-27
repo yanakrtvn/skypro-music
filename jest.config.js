@@ -7,7 +7,9 @@ module.exports = {
   ],
   testPathIgnorePatterns: ['/node_modules/', '/.next/'],
   transform: {
-    '^.+\\.(ts|tsx)$': 'babel-jest',
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.json'
+    }],
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

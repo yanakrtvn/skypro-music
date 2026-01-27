@@ -18,10 +18,16 @@
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.6",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@babel/core": "^7.28.6",
+    "@jest/globals": "^30.2.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^20",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.30",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
