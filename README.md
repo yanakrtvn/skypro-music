@@ -50,47 +50,61 @@ Skypro.Music 🎵
   
 📁 Структура проекта
 
-| **app/** | Страницы приложения |
-| ├── page.tsx | Главная страница |
-| ├── layout.tsx | Корневой layout |
-| ├── signin/ | Страница входа |
-| ├── signup/ | Страница регистрации |
-| ├── favorites/ | Страница избранного |
-| └── playlist/[id]/ | Страница плейлиста |
-| **components/** | React компоненты |
-| ├── AudioPlayer/ | Аудиоплеер |
-| ├── Bar/ | Нижний плеер |
-| ├── CenterBlock/ | Основной блок контента |
-| ├── Header/ | Шапка с навигацией |
-| ├── Sidebar/ | Боковая панель |
-| ├── Track/ | Компонент трека |
-| ├── FilterList/ | Компонент фильтров |
-| └── LoadingState/ | Состояние загрузки |
-| **store/** | Redux хранилище |
-| ├── store.ts | Конфигурация store |
-| ├── ReduxProvider.tsx | Провайдер Redux |
-| ├── hooks.ts | Кастомные хуки |
-| └── features/trackSlice.ts | Слайс для треков |
-| **api/** | API клиент |
-| ├── client.ts | Основной API клиент |
-| └── withReAuth.ts | Логика повторной авторизации |
-| **types/** | TypeScript типы |
-| └── api.ts | Типы для API |
-| **hooks/** | Кастомные хуки |
-| ├── useFavorites.ts | Хук для избранного |
-| └── usePlayerControls.ts | Хук для управления плеером |
-| **context/** | React контексты |
-| ├── AuthContext.tsx | Контекст авторизации |
-| └── NotificationContext.tsx | Контекст уведомлений |
-| **utils/** | Вспомогательные функции |
-| ├── formatters.ts | Форматирование данных |
-| └── filters.ts | Функции фильтрации |
-| **public/** | Статические файлы |
-| ├── images/ | Изображения |
-| └── fonts/ | Шрифты |
-| **styles/** | Глобальные стили |
-| └── globals.css | Глобальные CSS |
-| package.json | Зависимости и скрипты |
+```mermaid
+graph TD
+    A[skypro-music/] --> B[app/]
+    A --> C[components/]
+    A --> D[store/]
+    A --> E[api/]
+    A --> F[types/]
+    A --> G[hooks/]
+    A --> H[context/]
+    A --> I[utils/]
+    A --> J[public/]
+    A --> K[styles/]
+    A --> L[package.json]
+    
+    B --> B1[page.tsx]
+    B --> B2[layout.tsx]
+    B --> B3[signin/]
+    B --> B4[signup/]
+    B --> B5[favorites/]
+    B --> B6[playlist/[id]/]
+    
+    C --> C1[AudioPlayer/]
+    C --> C2[Bar/]
+    C --> C3[CenterBlock/]
+    C --> C4[Header/]
+    C --> C5[Sidebar/]
+    C --> C6[Track/]
+    C --> C7[FilterList/]
+    C --> C8[LoadingState/]
+    
+    D --> D1[store.ts]
+    D --> D2[ReduxProvider.tsx]
+    D --> D3[hooks.ts]
+    D --> D4[features/]
+    D4 --> D41[trackSlice.ts]
+    
+    E --> E1[client.ts]
+    E --> E2[withReAuth.ts]
+    
+    F --> F1[api.ts]
+    
+    G --> G1[useFavorites.ts]
+    G --> G2[usePlayerControls.ts]
+    
+    H --> H1[AuthContext.tsx]
+    H --> H2[NotificationContext.tsx]
+    
+    I --> I1[formatters.ts]
+    I --> I2[filters.ts]
+    
+    J --> J1[images/]
+    J --> J2[fonts/]
+    
+    K --> K1[globals.css]
 
 🔌 API документация
+
 Базовый URL https://webdev-music-003b5b991590.herokuapp.com
