@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import Track from '@/components/Track/Track';
 import styles from './CenterBlock.module.css';
 import { useAppSelector } from '@/store/hooks';
 import { Track as TrackType } from '@/types/api';
 import FilterList from '@/components/FilterList/FilterList';
 import FilterLength from '@/components/FilterLength/FilterLength';
+import { usePathname } from 'next/navigation';
 
 interface FavoritesCenterBlockProps {
   serverFavorites?: TrackType[];
@@ -52,6 +53,33 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
   });
   
   const { favoriteTracks } = useAppSelector((state) => state.tracks);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const resetFilters = () => {
+      setSearchQuery('');
+      setActiveFilter(null);
+      setSelectedFilters({
+        artist: [],
+        year: [],
+        genre: []
+      });
+    };
+
+    resetFilters();
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      setSearchQuery('');
+      setActiveFilter(null);
+      setSelectedFilters({
+        artist: [],
+        year: [],
+        genre: []
+      });
+    };
+  }, []);
 
   const displayTracks = useMemo(() => 
     serverFavorites.length > 0 ? serverFavorites : favoriteTracks,
@@ -178,9 +206,9 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
       if (!track) return false;
 
       const matchesSearch = searchQuery === '' || 
-        (track.name && track.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (track.author && track.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (track.album && track.album.toLowerCase().includes(searchQuery.toLowerCase()));
+        (track.name && track.name.toLowerCase().startsWith(searchQuery.toLowerCase())) ||
+        (track.author && track.author.toLowerCase().startsWith(searchQuery.toLowerCase())) ||
+        (track.album && track.album.toLowerCase().startsWith(searchQuery.toLowerCase()));
       
       if (!matchesSearch) return false;
       
@@ -343,10 +371,10 @@ export default function FavoritesCenterBlock({ serverFavorites = [] }: Favorites
                 />
               ))
           ) : (
-            <div className={styles.emptyPlaylist}>
+            <div className={styles.noResults}>
               {searchQuery || selectedFilters.artist.length > 0 || 
                selectedFilters.year.length > 0 || selectedFilters.genre.length > 0
-                ? 'По вашему запросу ничего не найдено'
+                ? 'Нет подходящих треков'
                 : 'Здесь пока нет треков. Добавьте их, нажав на сердечко!'
               }
             </div>
